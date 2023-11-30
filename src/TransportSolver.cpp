@@ -2,8 +2,9 @@
 
 #include <cmath>
 
-TransportSolver::TransportSolver(BrickMesh3D & mesh, unsigned int n_l, unsigned int n_c, DiscretizationType disc_type)
+TransportSolver::TransportSolver(BrickMesh3D & mesh, unsigned int n_l, unsigned int n_c, DiscretizationType disc_type, unsigned int num_threads)
   : _disc_type(disc_type),
+    _num_threads(num_threads),
     _mesh(mesh),
     _angular_quad(2u * n_c, 2u * n_l)
 { }
@@ -98,30 +99,147 @@ TransportSolver::sweep(unsigned int iteration)
 
   double weight = 0.0;
 
-  for (unsigned int n = 0u; n < _angular_quad.totalOrder(); ++n)
+  // Sweep +\mu, +\eta, +\xi.
   {
-    _angular_quad.direction(n, mu, eta, xi);
-
-    //std::cout << "Sweeping direction " << n << " (" << mu << ", " << eta << ", " << xi << ")." << std::endl;
-
-    // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-    // if the upwind/downwind directions are aligned properly.
-    abs_mu = std::abs(mu);
-    abs_eta = std::abs(eta);
-    abs_xi = std::abs(xi);
-
-    weight = _angular_quad.weight(n);
-
-    switch (classifyDirection(mu, eta, xi))
+    const auto current_oct = Octant::PPP;
+    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
     {
-      case Octant::PPP: sweepPPP(abs_mu, abs_eta, abs_xi, weight, iteration); break; // Left->Right, Back->Front, Bottom->Top
-      case Octant::PPM: sweepPPM(abs_mu, abs_eta, abs_xi, weight, iteration); break; // Left->Right, Back->Front, Top->Bottom
-      case Octant::PMP: sweepPMP(abs_mu, abs_eta, abs_xi, weight, iteration); break; // Left->Right, Front->Back, Bottom->Top
-      case Octant::PMM: sweepPMM(abs_mu, abs_eta, abs_xi, weight, iteration); break; // Left->Right, Front->Back, Top->Bottom
-      case Octant::MPP: sweepMPP(abs_mu, abs_eta, abs_xi, weight, iteration); break; // Right->Left, Back->Front, Bottom->Top
-      case Octant::MPM: sweepMPM(abs_mu, abs_eta, abs_xi, weight, iteration); break; // Right->Left, Back->Front, Top->Bottom
-      case Octant::MMP: sweepMMP(abs_mu, abs_eta, abs_xi, weight, iteration); break; // Right->Left, Front->Back, Bottom->Top
-      case Octant::MMM: sweepMMM(abs_mu, abs_eta, abs_xi, weight, iteration); break; // Right->Left, Front->Back, Top->Bottom
+      _angular_quad.direction(current_oct, n, mu, eta, xi);
+      weight = _angular_quad.weight(current_oct, n);
+
+      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+      // if the upwind/downwind directions are aligned properly.
+      abs_mu = std::abs(mu);
+      abs_eta = std::abs(eta);
+      abs_xi = std::abs(xi);
+
+      sweepPPP(abs_mu, abs_eta, abs_xi, weight, iteration);
+    }
+  }
+
+  // Sweep +\mu, +\eta, -\xi.
+  {
+    const auto current_oct = Octant::PPM;
+    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
+    {
+      _angular_quad.direction(current_oct, n, mu, eta, xi);
+      weight = _angular_quad.weight(current_oct, n);
+
+      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+      // if the upwind/downwind directions are aligned properly.
+      abs_mu = std::abs(mu);
+      abs_eta = std::abs(eta);
+      abs_xi = std::abs(xi);
+
+      sweepPPM(abs_mu, abs_eta, abs_xi, weight, iteration);
+    }
+  }
+
+  // Sweep +\mu, -\eta, +\xi.
+  {
+    const auto current_oct = Octant::PMP;
+    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
+    {
+      _angular_quad.direction(current_oct, n, mu, eta, xi);
+      weight = _angular_quad.weight(current_oct, n);
+
+      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+      // if the upwind/downwind directions are aligned properly.
+      abs_mu = std::abs(mu);
+      abs_eta = std::abs(eta);
+      abs_xi = std::abs(xi);
+
+      sweepPMP(abs_mu, abs_eta, abs_xi, weight, iteration);
+    }
+  }
+
+  // Sweep +\mu, -\eta, -\xi.
+  {
+    const auto current_oct = Octant::PMM;
+    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
+    {
+      _angular_quad.direction(current_oct, n, mu, eta, xi);
+      weight = _angular_quad.weight(current_oct, n);
+
+      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+      // if the upwind/downwind directions are aligned properly.
+      abs_mu = std::abs(mu);
+      abs_eta = std::abs(eta);
+      abs_xi = std::abs(xi);
+
+      sweepPMM(abs_mu, abs_eta, abs_xi, weight, iteration);
+    }
+  }
+
+  // Sweep -\mu, +\eta, +\xi.
+  {
+    const auto current_oct = Octant::MPP;
+    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
+    {
+      _angular_quad.direction(current_oct, n, mu, eta, xi);
+      weight = _angular_quad.weight(current_oct, n);
+
+      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+      // if the upwind/downwind directions are aligned properly.
+      abs_mu = std::abs(mu);
+      abs_eta = std::abs(eta);
+      abs_xi = std::abs(xi);
+
+      sweepMPP(abs_mu, abs_eta, abs_xi, weight, iteration);
+    }
+  }
+
+  // Sweep -\mu, +\eta, -\xi.
+  {
+    const auto current_oct = Octant::MPM;
+    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
+    {
+      _angular_quad.direction(current_oct, n, mu, eta, xi);
+      weight = _angular_quad.weight(current_oct, n);
+
+      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+      // if the upwind/downwind directions are aligned properly.
+      abs_mu = std::abs(mu);
+      abs_eta = std::abs(eta);
+      abs_xi = std::abs(xi);
+
+      sweepMPM(abs_mu, abs_eta, abs_xi, weight, iteration);
+    }
+  }
+
+  // Sweep -\mu, -\eta, +\xi.
+  {
+    const auto current_oct = Octant::MMP;
+    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
+    {
+      _angular_quad.direction(current_oct, n, mu, eta, xi);
+      weight = _angular_quad.weight(current_oct, n);
+
+      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+      // if the upwind/downwind directions are aligned properly.
+      abs_mu = std::abs(mu);
+      abs_eta = std::abs(eta);
+      abs_xi = std::abs(xi);
+
+      sweepMMP(abs_mu, abs_eta, abs_xi, weight, iteration);
+    }
+  }
+
+  // Sweep -\mu, -\eta, -\xi.
+  {
+    const auto current_oct = Octant::MMM;
+    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
+    {
+      _angular_quad.direction(current_oct, n, mu, eta, xi);
+      weight = _angular_quad.weight(current_oct, n);
+
+      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+      // if the upwind/downwind directions are aligned properly.
+      abs_mu = std::abs(mu);
+      abs_eta = std::abs(eta);
+      abs_xi = std::abs(xi);
+
+      sweepMMM(abs_mu, abs_eta, abs_xi, weight, iteration);
     }
   }
 }

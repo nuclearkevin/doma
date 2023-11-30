@@ -1,6 +1,9 @@
 #pragma once
 
+#include "TransportBase.h"
+
 #include <vector>
+#include <array>
 
 //------------------------------------------------------------------------------
 // Legendre polynomials here.
@@ -71,13 +74,10 @@ class GCAngularQuadrature
 public:
   GCAngularQuadrature(unsigned int n_c, unsigned int n_l);
 
-  unsigned int totalOrder() const;
-  void direction(unsigned int n, double & mu, double & eta, double & xi) const;
-  const double & weight(unsigned int n) const ;
+  unsigned int order(Octant oct) const;
+  void direction(Octant oct, unsigned int n, double & mu, double & eta, double & xi) const;
+  const double & weight(Octant oct, unsigned int n) const ;
   const std::vector<double> & getWeights() const;
-
-  const double & getPolarRoot(unsigned int n) const;
-  const double & getAzimuthalAngularRoot(unsigned int n) const;
 
   unsigned int legendreOrder() const { return _n_l; }
   LegendrePolynomial getPolarLegendre() const { return _polar_quadrature; }
@@ -86,8 +86,7 @@ public:
   ChebyshevPolynomial getAzimuthalChebyshev() const { return _azimuthal_quadrature; }
 
 private:
-  // Generate a weight-ordinate pair for 3 dimensional problems.
-  void generateWeightOrdiantePair(unsigned int i, unsigned int j);
+  Octant classifyDirection(const double & mu, const double & eta, const double & xi);
 
   // Number of Chebyshev quadrature points and number of Legendre quadrature
   // points, respectively.
@@ -97,8 +96,10 @@ private:
   LegendrePolynomial _polar_quadrature;
   ChebyshevPolynomial _azimuthal_quadrature;
 
-  std::vector<double> _quadrature_set_mu;
-  std::vector<double> _quadrature_set_eta;
-  std::vector<double> _quadrature_set_xi;
-  std::vector<double> _quadrature_set_weight;
+  // Quadrature set directions indexed by octant of the unit sphere. Order is as follows:
+  // PPP, PPM, PMP, PMM, MPP, MPM, MMP, MMM
+  std::array<std::vector<double>, 8u> _quadrature_set_mu;
+  std::array<std::vector<double>, 8u> _quadrature_set_eta;
+  std::array<std::vector<double>, 8u> _quadrature_set_xi;
+  std::array<std::vector<double>, 8u> _quadrature_set_weight;
 }; // class GCAngularQuadrature

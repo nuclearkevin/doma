@@ -18,16 +18,6 @@ public:
   // Set material properties for each cell.
   void addPropsToBlock(unsigned int block, const double & sigma_total, const double & sigma_scattering, const double & fixed_source);
 
-  // Getters to fetch the properties of note.
-  std::vector<CartesianCell3D *> & getBoundaryCells(CertesianFaceSide side)
-  {
-    return _boundary_cells[static_cast<unsigned int>(side)];
-  }
-  std::vector<CartesianCell3D> & getCells()
-  {
-    return _cells;
-  }
-
   // Returns true if the point exists on the mesh, false if it does not. The flux at that point
   // will be stored in 'returned_flux' if the point is on the mesh.
   bool fluxAtPoint(const double & x, const double & y, const double & z, double & returned_flux) const;
@@ -35,13 +25,16 @@ public:
   // Dump the flux to a text file.
   void dumpToTextFile(const std::string & file_name);
 
-  // Prints a z layer of the mesh
-  void printScalarFluxLayer(unsigned int z_layer);
-
   // A debug helper to print all of the mesh cells.
   void printAllBlocks();
   void printAllCoords();
   void printAllSideLengths();
+
+    // Getters to fetch the properties of note.
+  std::vector<CartesianCell3D *> & getBoundaryCells(CertesianFaceSide side)
+  {
+    return _boundary_cells[static_cast<unsigned int>(side)];
+  }
 
 private:
   friend class TransportSolver;

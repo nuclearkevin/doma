@@ -176,7 +176,7 @@ void
 BrickMesh3D::addPropsToBlock(unsigned int block, const double & sigma_total, const double & sigma_scattering, const double & fixed_source)
 {
   for (auto & cell : _cells)
-    if (cell.getBlock() == block)
+    if (cell._block_id == block)
       cell.applyProperties(sigma_total, sigma_scattering, fixed_source);
 }
 
@@ -189,7 +189,7 @@ BrickMesh3D::fluxAtPoint(const double & x, const double & y, const double & z, d
   {
     if (cell.pointInCell(x, y, z))
     {
-      returned_flux = cell.getScalarFlux();
+      returned_flux = cell._total_scalar_flux;
       return true;
     }
   }
@@ -212,26 +212,11 @@ BrickMesh3D::dumpToTextFile(const std::string & file_name)
   flux << std::setprecision(6);
   for (const auto & cell : _cells)
   {
-    blocks << cell.getBlock() << std::endl;
-    flux << cell.getScalarFlux() << std::endl;
+    blocks << cell._block_id << std::endl;
+    flux << cell._total_scalar_flux << std::endl;
   }
   blocks.close();
   flux.close();
-}
-
-void
-BrickMesh3D::printScalarFluxLayer(unsigned int z_layer)
-{
-  for (unsigned int j = 0u; j < _tot_num_y; ++j)
-  {
-    for (unsigned int i = 0u; i < _tot_num_x; ++i)
-    {
-      std::cout << _cells[z_layer * _tot_num_y * _tot_num_x + j * _tot_num_x + i].getScalarFlux();
-      std::cout << " ";
-    }
-    std::cout << "\n";
-  }
-  std::cout << std::flush;
 }
 
 void
@@ -243,7 +228,7 @@ BrickMesh3D::printAllBlocks()
     {
       for (unsigned int i = 0u; i < _tot_num_x; ++i)
       {
-        std::cout << _cells[k * _tot_num_y * _tot_num_x + j * _tot_num_x + i].getBlock();
+        std::cout << _cells[k * _tot_num_y * _tot_num_x + j * _tot_num_x + i]._block_id;
         std::cout << " ";
       }
       std::cout << "\n";
@@ -264,7 +249,7 @@ BrickMesh3D::printAllCoords()
       for (unsigned int i = 0u; i < _tot_num_x; ++i)
       {
         const auto & cell = _cells[k * _tot_num_y * _tot_num_x + j * _tot_num_x + i];
-        std::cout << "(" << cell.getCenterX() << ", " << cell.getCenterY() << ", " << cell.getCenterZ() << ")";
+        std::cout << "(" << cell._x_c << ", " << cell._y_c << ", " << cell._z_c << ")";
         std::cout << " ";
       }
       std::cout << "\n";

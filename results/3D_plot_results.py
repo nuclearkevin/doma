@@ -7,7 +7,7 @@ import matplotlib.colors as colors
 dim_x = 80
 dim_y = 80
 dim_z = 80
-z_point = 79
+z_point = 40
 #z_point = int(dim_z / 2)
 
 diamond_raw = np.loadtxt('Kobayashi_1_diamond_flux.txt')

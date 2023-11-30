@@ -10,7 +10,7 @@
 class TransportSolver
 {
 public:
-  TransportSolver(BrickMesh3D & mesh, unsigned int n_l, unsigned int n_c, DiscretizationType disc_type);
+  TransportSolver(BrickMesh3D & mesh, unsigned int n_l, unsigned int n_c, DiscretizationType disc_type, unsigned int num_threads = 1u);
 
   bool solve(const double & source_iteration_tolerance = 1e-5, unsigned int max_iterations = 1000u);
 
@@ -49,6 +49,7 @@ private:
                           CertesianFaceSide z_uw, CertesianFaceSide z_dw);
 
   const DiscretizationType _disc_type;
+  const unsigned int _num_threads;
 
   // The mesh to run the transport solver on.
   BrickMesh3D & _mesh;

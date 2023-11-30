@@ -5,6 +5,7 @@
 #include "TransportBase.h"
 
 class TransportSolver;
+class BrickMesh3D;
 
 // A 3D cartesian cell.
 class CartesianCell3D
@@ -30,23 +31,8 @@ public:
   // Helper to fetch cell neighbors.
   const CartesianCell3D * neighbor(CertesianFaceSide side) const { return _neighbors[static_cast<unsigned int>(side)]; }
 
-  // Fetch the cell-centered value of the scalar flux.
-  const double & getScalarFlux() const { return _total_scalar_flux; }
-
   // Check to see if a point is in the cell.
   bool pointInCell(const double & x, const double & y, const double & z) const;
-
-  // Misc. getters.
-  unsigned int getID() const { return _cell_id; }
-  unsigned int getBlock() const { return _block_id; }
-
-  double getCenterX() const { return _x_c; }
-  double getCenterY() const { return _y_c; }
-  double getCenterZ() const { return _z_c; }
-
-  double getSigmaTotal() const { return _sigma_t; }
-  double getSigmaScatter() const { return _sigma_s; }
-  double getFixedSrc() const { return _fixed_src; }
 
   double getSideLength(CertesianAxis axis) const
   {
@@ -80,6 +66,7 @@ public:
 
 private:
   friend class TransportSolver;
+  friend class BrickMesh3D;
 
   const unsigned int _cell_id;
   const unsigned int _block_id;
