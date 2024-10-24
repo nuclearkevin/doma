@@ -4,8 +4,10 @@
 
 #include "TransportBase.h"
 
-class TransportSolver;
 class BrickMesh3D;
+
+template <typename T>
+class TransportSolver3D;
 
 // A 3D cartesian cell.
 class CartesianCell3D
@@ -64,10 +66,6 @@ public:
     return _volume;
   }
 
-private:
-  friend class TransportSolver;
-  friend class BrickMesh3D;
-
   const unsigned int _cell_id;
   const unsigned int _block_id;
 
@@ -91,6 +89,12 @@ private:
   double _total_scalar_flux;    // The sum of scalar fluxes from each scattering iteration.
   double _previous_scalar_flux; // The previous scalar flux iteration.
   double _current_scalar_flux;  // For accumulating the current iteration's scalar flux while the angular flux is being swept.
+
+protected:
+  friend class BrickMesh3D;
+
+  template <typename T>
+  friend class TransportSolver3D;
 
   // The interface angular fluxes. Downwind fluxes are computed by the cell, upwind fluxes are pulled from neighboring cells.
   // Organized in the following order: Front, Back, Right, Left, Top, Bottom.

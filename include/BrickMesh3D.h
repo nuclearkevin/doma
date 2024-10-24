@@ -5,7 +5,10 @@
 
 #include "CartesianCell3D.h"
 
-class TransportSolver;
+class BrickCellEquation;
+
+template <typename T>
+class TransportSolver3D;
 
 // A regular 3D cartesian mesh.
 class BrickMesh3D
@@ -37,7 +40,10 @@ public:
   }
 
 private:
-  friend class TransportSolver;
+  friend class BrickCellEquation;
+
+  template <typename T>
+  friend class TransportSolver3D;
 
   // Number of brick cells per subdivision.
   const std::vector<unsigned int> _nx;
