@@ -1,13 +1,13 @@
 COMPILE_FLAGS := g++ -g -std=c++17 -I ./include
 
-makebuild: cartsweeper
+makebuild: doma
 
 SOURCES := $(wildcard ./src/*.cpp)
 OBJECTS	:= $(patsubst ./src/%.cpp, ./bin/%.o, $(SOURCES))
 
-cartsweeper: $(OBJECTS)
+doma: $(OBJECTS)
 	@echo Linking...
-	g++ -o ./cartsweeper $^
+	g++ -o ./doma $^
 
 ./bin/%.o: ./src/%.cpp
 	@echo Compiling $< ...
@@ -15,5 +15,5 @@ cartsweeper: $(OBJECTS)
 
 clean:
 	@echo Cleaning...
-	@rm cartsweeper
+	@rm doma
 	@rm ./bin/*.o

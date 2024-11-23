@@ -1,4 +1,6 @@
-#include "TransportSolver.h"
+#include "TransportSolver3D.h"
+#include "DiamondDifference.h"
+#include "TWDiamondDifference.h"
 
 #include <iostream>
 #include <iomanip>
@@ -52,66 +54,26 @@ main(int argc, char** argv)
                                      2, 2, 2, 2, 2,
                                      2, 2, 2, 2, 2};
 
-    auto mesh = BrickMesh3D(ix, iy, iz, dx, dy, dz, blocks);
+    std::array<BoundaryCondition, 6u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
+                                                              BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
+                                                              BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
+
+    auto mesh = BrickMesh3D(ix, iy, iz, dx, dy, dz, blocks, boundary_conditions);
     mesh.addPropsToBlock(0, 1e-1, 5e-2, 1.0);
     mesh.addPropsToBlock(1, 1e-4, 5e-5, 0.0);
     mesh.addPropsToBlock(2, 1e-1, 5e-2, 0.0);
+    // mesh.addPropsToBlock(0, 1e-1, 0.0, 1.0);
+    // mesh.addPropsToBlock(1, 1e-4, 0.0, 0.0);
+    // mesh.addPropsToBlock(2, 1e-1, 0.0, 0.0);
 
     {
-      std::cout << "Solving with Diamond Differences." << std::endl;
+      std::cout << "Solving with Theta-Weighted Diamond Differences." << std::endl;
       std::cout << "---------------------------------------\n";
-      TransportSolver solver(mesh, nl, nc, DiscretizationType::DiamondDifference);
+      TransportSolver3D<TWDiamondDifference> solver(mesh, nl, nc);
       if (solver.solve(1e-8, 1000u))
       {
         mesh.dumpToTextFile("Kobayashi_1_diamond");
-
-        std::cout << "Results for Diamond Differences." << std::endl;
-        std::cout << "---------------------------------------\n";
-        double one_a_fluxes[10u] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        mesh.fluxAtPoint(105.0, 105.0, 105.0, one_a_fluxes[0]);
-        mesh.fluxAtPoint(105.0, 115.0, 105.0, one_a_fluxes[1]);
-        mesh.fluxAtPoint(105.0, 125.0, 105.0, one_a_fluxes[2]);
-        mesh.fluxAtPoint(105.0, 135.0, 105.0, one_a_fluxes[3]);
-        mesh.fluxAtPoint(105.0, 145.0, 105.0, one_a_fluxes[4]);
-        mesh.fluxAtPoint(105.0, 155.0, 105.0, one_a_fluxes[5]);
-        mesh.fluxAtPoint(105.0, 165.0, 105.0, one_a_fluxes[6]);
-        mesh.fluxAtPoint(105.0, 175.0, 105.0, one_a_fluxes[7]);
-        mesh.fluxAtPoint(105.0, 185.0, 105.0, one_a_fluxes[8]);
-        mesh.fluxAtPoint(105.0, 195.0, 105.0, one_a_fluxes[9]);
-        std::cout << "1-A fluxes:\n" << std::setprecision(6);
-        for (unsigned int i = 0u; i < 10; ++i)
-          std::cout << one_a_fluxes[i] << "\n";
-
-        double one_b_fluxes[10u] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        mesh.fluxAtPoint(105.0, 105.0, 105.0, one_b_fluxes[0]);
-        mesh.fluxAtPoint(115.0, 115.0, 115.0, one_b_fluxes[1]);
-        mesh.fluxAtPoint(125.0, 125.0, 125.0, one_b_fluxes[2]);
-        mesh.fluxAtPoint(135.0, 135.0, 135.0, one_b_fluxes[3]);
-        mesh.fluxAtPoint(145.0, 145.0, 145.0, one_b_fluxes[4]);
-        mesh.fluxAtPoint(155.0, 155.0, 155.0, one_b_fluxes[5]);
-        mesh.fluxAtPoint(165.0, 165.0, 165.0, one_b_fluxes[6]);
-        mesh.fluxAtPoint(175.0, 175.0, 175.0, one_b_fluxes[7]);
-        mesh.fluxAtPoint(185.0, 185.0, 185.0, one_b_fluxes[8]);
-        mesh.fluxAtPoint(195.0, 195.0, 195.0, one_b_fluxes[9]);
-        std::cout << "1-B fluxes:\n" << std::setprecision(6);
-        for (unsigned int i = 0u; i < 10; ++i)
-          std::cout << one_b_fluxes[i] << "\n";
-
-        double one_c_fluxes[10u] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        mesh.fluxAtPoint(105.0, 155.0, 105.0, one_c_fluxes[0]);
-        mesh.fluxAtPoint(115.0, 155.0, 105.0, one_c_fluxes[1]);
-        mesh.fluxAtPoint(125.0, 155.0, 105.0, one_c_fluxes[2]);
-        mesh.fluxAtPoint(135.0, 155.0, 105.0, one_c_fluxes[3]);
-        mesh.fluxAtPoint(145.0, 155.0, 105.0, one_c_fluxes[4]);
-        mesh.fluxAtPoint(155.0, 155.0, 105.0, one_c_fluxes[5]);
-        mesh.fluxAtPoint(165.0, 155.0, 105.0, one_c_fluxes[6]);
-        mesh.fluxAtPoint(175.0, 155.0, 105.0, one_c_fluxes[7]);
-        mesh.fluxAtPoint(185.0, 155.0, 105.0, one_c_fluxes[8]);
-        mesh.fluxAtPoint(195.0, 155.0, 105.0, one_c_fluxes[9]);
-        std::cout << "1-C fluxes:\n" << std::setprecision(6);
-        for (unsigned int i = 0u; i < 10; ++i)
-          std::cout << one_c_fluxes[i] << "\n";
-        std::cout << std::flush;
+        std::cout << "Solved with Theta-Weighted Diamond Differences." << std::endl;
       }
       std::cout << "---------------------------------------\n";
     }

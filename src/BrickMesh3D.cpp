@@ -7,7 +7,7 @@
 
 BrickMesh3D::BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector<unsigned int> & ny, const std::vector<unsigned int> & nz,
                          const std::vector<double> & dx, const std::vector<double> & dy, const std::vector<double> & dz,
-                         const std::vector<unsigned int> & blocks)
+                         const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 6u> & bcs)
   : _nx(nx),
     _ny(ny),
     _nz(nz),
@@ -19,7 +19,8 @@ BrickMesh3D::BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector
     _dz(dz),
     _blocks(blocks),
     _num_cells(0u),
-    _total_volume(0.0)
+    _total_volume(0.0),
+    _bcs(bcs)
 {
   if (_nx.size() * _ny.size() * _nz.size() != _blocks.size())
   {
@@ -87,7 +88,7 @@ BrickMesh3D::BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector
     {
       for (unsigned int i = 0u; i < tot_dx.size(); ++i)
       {
-        _cells.emplace_back(tot_dx[i], tot_dy[j], tot_dz[k], x_c, y_c, z_c, _num_cells, tot_blocks[k * tot_dy.size() * tot_dx.size() + j * tot_dx.size() + i]);
+        _cells.emplace_back(tot_dx[i], tot_dy[j], tot_dz[k], x_c, y_c, z_c, _num_cells, tot_blocks[k * tot_dy.size() * tot_dx.size() + j * tot_dx.size() + i], this);
         _total_volume += _cells.back().getVolume();
         _num_cells++;
         x_c += tot_dx[i];

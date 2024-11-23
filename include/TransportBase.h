@@ -29,8 +29,8 @@ enum class Octant
   MMM = 7u, // -\mu, -\eta, -\xi
 };
 
-enum class DiscretizationType
+enum class BoundaryCondition
 {
-  DiamondDifference = 0u,
-  StepCharacteristics = 1u
+  Vacuum = 0u,
+  Reflective = 1u
 };

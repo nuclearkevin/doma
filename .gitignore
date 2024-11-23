@@ -30,6 +30,11 @@
 *.exe
 *.out
 *.app
+doma
 
 # VSCode stuff
 /.vscode/*
+
+# DOMA outputs and post-processing
+*.txt
+/results*

@@ -5,7 +5,8 @@
 
 #include "CartesianCell3D.h"
 
-class TransportSolver;
+template <typename T>
+class TransportSolver3D;
 
 // A regular 3D cartesian mesh.
 class BrickMesh3D
@@ -13,7 +14,7 @@ class BrickMesh3D
 public:
   BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector<unsigned int> & ny, const std::vector<unsigned int> & nz,
               const std::vector<double> & dx, const std::vector<double> & dy, const std::vector<double> & dz,
-              const std::vector<unsigned int> & blocks);
+              const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 6u> & bcs);
 
   // Set material properties for each cell.
   void addPropsToBlock(unsigned int block, const double & sigma_total, const double & sigma_scattering, const double & fixed_source);
@@ -37,7 +38,10 @@ public:
   }
 
 private:
-  friend class TransportSolver;
+  friend class CartesianCell3D;
+
+  template <typename T>
+  friend class TransportSolver3D;
 
   // Number of brick cells per subdivision.
   const std::vector<unsigned int> _nx;
@@ -63,6 +67,12 @@ private:
   // The total volume of the mesh.
   double _total_volume;
 
+  // A list of boundary conditions. Organized in the following order: Front, Back, Right, Left, Top, Bottom.
+  const std::array<BoundaryCondition, 6u> _bcs;
+
   // A list of boundary cells. Organized in the following order: Front, Back, Right, Left, Top, Bottom.
   std::array<std::vector<CartesianCell3D *>, 6u> _boundary_cells;
+
+  // An array of boundary angular fluxes for reflective bcs.
+  std::array<std::vector<double>, 6u> _boundary_angular_fluxes;
 }; // class BrickMesh3D

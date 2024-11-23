@@ -2,9 +2,11 @@
 
 #include <iostream>
 
+#include "BrickMesh3D.h"
+
 CartesianCell3D::CartesianCell3D(const double & lx, const double & ly, const double & lz,
                                  const double & x_center, const double & y_center, const double & z_center,
-                                 unsigned int cell_id, unsigned int block_id)
+                                 unsigned int cell_id, unsigned int block_id, BrickMesh3D * parent_mesh)
   : _cell_id(cell_id),
     _block_id(block_id),
     _sigma_t(0.0),
@@ -18,8 +20,9 @@ CartesianCell3D::CartesianCell3D(const double & lx, const double & ly, const dou
     _l_z(std::move(lz)),
     _volume(_l_x * _l_y * _l_z),
     _total_scalar_flux(0.0),
-    _previous_scalar_flux(0.0),
+    _current_iteration_source(0.0),
     _current_scalar_flux(0.0),
+    _parent_mesh(parent_mesh),
     _interface_angular_fluxes({0.0, 0.0, 0.0, 0.0, 0.0, 0.0}),
     _neighbors({nullptr, nullptr, nullptr, nullptr, nullptr, nullptr})
 { }
@@ -36,6 +39,15 @@ void
 CartesianCell3D::addNeighbor(const CartesianCell3D * cell, CertesianFaceSide side)
 {
   _neighbors[static_cast<unsigned int>(side)] = cell;
+}
+
+double
+CartesianCell3D::boundaryFlux(CertesianFaceSide side, unsigned int ordinate_index)
+{
+  if (_parent_mesh->_bcs[static_cast<unsigned int>(side)] == BoundaryCondition::Vacuum)
+    return 0.0;
+
+  return 0.0;
 }
 
 // Check to see if a point is in the cell.

@@ -4,8 +4,10 @@
 
 #include "TransportBase.h"
 
-class TransportSolver;
 class BrickMesh3D;
+
+template <typename T>
+class TransportSolver3D;
 
 // A 3D cartesian cell.
 class CartesianCell3D
@@ -13,7 +15,7 @@ class CartesianCell3D
 public:
   CartesianCell3D(const double & lx, const double & ly, const double & lz,
                   const double & x_center, const double & y_center, const double & z_center,
-                  unsigned int cell_id, unsigned int block_id);
+                  unsigned int cell_id, unsigned int block_id, BrickMesh3D * parent_mesh);
 
   // Apply transport material properties to this cell.
   void applyProperties(const double & sigma_total, const double & sigma_scattering, const double & fixed_source);
@@ -27,6 +29,9 @@ public:
   {
     _interface_angular_fluxes[static_cast<unsigned int>(side)] = val;
   }
+
+  // Helper to fetch BCs.
+  double boundaryFlux(CertesianFaceSide side, unsigned int ordinate_index);
 
   // Helper to fetch cell neighbors.
   const CartesianCell3D * neighbor(CertesianFaceSide side) const { return _neighbors[static_cast<unsigned int>(side)]; }
@@ -64,10 +69,6 @@ public:
     return _volume;
   }
 
-private:
-  friend class TransportSolver;
-  friend class BrickMesh3D;
-
   const unsigned int _cell_id;
   const unsigned int _block_id;
 
@@ -89,8 +90,17 @@ private:
 
   // Flux properties.
   double _total_scalar_flux;    // The sum of scalar fluxes from each scattering iteration.
-  double _previous_scalar_flux; // The previous scalar flux iteration.
+  double _current_iteration_source;    // The scattering source.
   double _current_scalar_flux;  // For accumulating the current iteration's scalar flux while the angular flux is being swept.
+
+protected:
+  friend class BrickMesh3D;
+
+  template <typename T>
+  friend class TransportSolver3D;
+
+  // The mesh which owns this cell.
+  BrickMesh3D * _parent_mesh;
 
   // The interface angular fluxes. Downwind fluxes are computed by the cell, upwind fluxes are pulled from neighboring cells.
   // Organized in the following order: Front, Back, Right, Left, Top, Bottom.

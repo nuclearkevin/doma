@@ -77,7 +77,8 @@ public:
   unsigned int order(Octant oct) const;
   void direction(Octant oct, unsigned int n, double & mu, double & eta, double & xi) const;
   const double & weight(Octant oct, unsigned int n) const ;
-  const std::vector<double> & getWeights() const;
+
+  unsigned int totalOrder() const { return 2u * _n_c * _n_l; }
 
   unsigned int legendreOrder() const { return _n_l; }
   LegendrePolynomial getPolarLegendre() const { return _polar_quadrature; }
