@@ -34,3 +34,16 @@ enum class BoundaryCondition
   Vacuum = 0u,
   Reflective = 1u
 };
+
+enum class RunMode
+{
+  FixedSrc = 0u,
+  Eigen = 1u,
+  Transient = 2u
+};
+
+enum class EquationType
+{
+  DD = 0u,
+  TW_DD = 1u
+};
