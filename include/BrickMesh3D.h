@@ -31,7 +31,7 @@ public:
   void printAllCoords();
   void printAllSideLengths();
 
-    // Getters to fetch the properties of note.
+  // Getters to fetch the properties of note.
   std::vector<CartesianCell3D *> & getBoundaryCells(CertesianFaceSide side)
   {
     return _boundary_cells[static_cast<unsigned int>(side)];

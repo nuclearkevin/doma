@@ -29,7 +29,7 @@
           fs_tol="1e-3" mg_tol="1e-3" pi_tol="1e-3" fs_max_it="100" mg_max_it="100"
           pi_max_it="100"/>
   <angular_quad type="gc" np="3" na="3"/>
-  <mesh dims="3">
+  <mesh dims="3" refinement="0">
     <dx vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
     <dy vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
     <dz vals="50.0, 40.0, 20.0, 40.0, 50.0"/>

@@ -1,6 +1,10 @@
+#include "DiamondDifference2D.h"
+#include "TWDiamondDifference2D.h"
+#include "TransportSolver2D.h"
+
+#include "DiamondDifference3D.h"
+#include "TWDiamondDifference3D.h"
 #include "TransportSolver3D.h"
-#include "DiamondDifference.h"
-#include "TWDiamondDifference.h"
 
 #include "InputParameters.h"
 
@@ -29,7 +33,7 @@ main(int argc, char** argv)
   }
 
   auto inp_file = args.get<std::string>("--input_file");
-  auto params = parseInputParameters(inp_file);
+  const auto params = parseInputParameters(inp_file);
 
   if (params._num_dims == 1)
   {
@@ -38,8 +42,31 @@ main(int argc, char** argv)
   }
   else if (params._num_dims == 2)
   {
-    std::cerr << "2D transport solves are currently not supported." << std::endl;
-    std::exit(1);
+    std::array<BoundaryCondition, 4u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
+                                                              BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
+
+    auto mesh = BrickMesh2D(params._x_intervals,
+                            params._y_intervals,
+                            params._dx,
+                            params._dy,
+                            params._blocks,
+                            boundary_conditions);
+
+    for (auto & [block, props] : params._block_mat_info)
+      mesh.addPropsToBlock(block, props._g_total[0], props._g_g_scatter_mat[0], props._g_src[0]);
+
+    if (params._eq_type == EquationType::DD)
+    {
+      TransportSolver2D<DiamondDifference2D> solver(mesh, params._num_polar, params._num_azimuthal);
+      if (solver.solve(params._src_it_tol, params._num_src_it))
+        mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")));
+    }
+    else if (params._eq_type == EquationType::TW_DD)
+    {
+      TransportSolver2D<TWDiamondDifference2D> solver(mesh, params._num_polar, params._num_azimuthal);
+      if (solver.solve(params._src_it_tol, params._num_src_it))
+        mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")));
+    }
   }
   else if (params._num_dims == 3)
   {
@@ -61,13 +88,13 @@ main(int argc, char** argv)
 
     if (params._eq_type == EquationType::DD)
     {
-      TransportSolver3D<DiamondDifference> solver(mesh, params._num_polar, params._num_azimuthal);
+      TransportSolver3D<DiamondDifference3D> solver(mesh, params._num_polar, params._num_azimuthal);
       if (solver.solve(params._src_it_tol, params._num_src_it))
         mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")));
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      TransportSolver3D<TWDiamondDifference> solver(mesh, params._num_polar, params._num_azimuthal);
+      TransportSolver3D<TWDiamondDifference3D> solver(mesh, params._num_polar, params._num_azimuthal);
       if (solver.solve(params._src_it_tol, params._num_src_it))
         mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")));
     }

@@ -1,0 +1,37 @@
+<!--                                                                   -->
+<!--               Solving the first Kobayashi benchmark               -->
+<!--                                                                   -->
+
+<doma_inp>
+  <solver solve_type="steady" scheme="tw_dd" num_groups="1" fs_tol="1e-5"
+          mg_tol="1e-3" fs_max_it="100" mg_max_it="100"/>
+  <angular_quad type="gc" np="10" na="10"/>
+  <mesh dims="2" refinement="3">
+    <dx vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
+    <dy vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
+    <ix vals="5,    4,    2,    4,    5"/>
+    <iy vals="5,    4,    2,    4,    5"/>
+    <blocks vals="2, 2, 2, 2, 2,
+                  2, 1, 1, 1, 2,
+                  2, 1, 0, 1, 2,
+                  2, 1, 1, 1, 2,
+                  2, 2, 2, 2, 2"/>
+  </mesh>
+  <materials>
+    <mat block="0">
+      <reaction type="total"   mgxs="1e-1"/>
+      <reaction type="scatter" mgxs="5e-2"/>
+      <reaction type="source"  mgxs="1.0"/>
+    </mat>
+    <mat block="1">
+      <reaction type="total"   mgxs="1e-4"/>
+      <reaction type="scatter" mgxs="5e-5"/>
+      <reaction type="source"  mgxs="0.0"/>
+    </mat>
+    <mat block="2">
+      <reaction type="total"   mgxs="1e-1"/>
+      <reaction type="scatter" mgxs="5e-2"/>
+      <reaction type="source"  mgxs="0.0"/>
+    </mat>
+  </materials>
+</doma_inp>

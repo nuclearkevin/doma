@@ -73,6 +73,9 @@ struct InputParameters
   // Number of dimensions for the simulation.
   unsigned int _num_dims;
 
+  // The uniform mesh refinement.
+  unsigned int _refinement;
+
   std::vector<unsigned int> _x_intervals;
   std::vector<unsigned int> _y_intervals;
   std::vector<unsigned int> _z_intervals;

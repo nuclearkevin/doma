@@ -5,7 +5,7 @@
 #include "TransportBase.h"
 #include "BrickMesh3D.h"
 #include "GCAngularQuadrature.h"
-#include "BrickCellEquation.h"
+#include "BrickCellEquation3D.h"
 
 // The main class which solves the transport equation using either the upwinded
 // diamond difference approximation or the upwinded step approximation.
@@ -17,10 +17,10 @@ public:
   TransportSolver3D(BrickMesh3D & mesh, unsigned int n_l, unsigned int n_c, unsigned int num_threads = 1u)
     : _num_threads(num_threads),
       _mesh(mesh),
-      _angular_quad(2u * n_c, 2u * n_l),
+      _angular_quad(2u * n_c, 2u * n_l, 3u),
       _eq_system()
   {
-    static_assert(std::is_base_of<BrickCellEquation, T>::value, "Class must derive from BrickCellEquation.");
+    static_assert(std::is_base_of<BrickCellEquation3D, T>::value, "Class must derive from BrickCellEquation3D.");
   }
 
   bool solve(const double & source_iteration_tolerance = 1e-5, unsigned int max_iterations = 1000u)
@@ -529,7 +529,7 @@ private:
   // The mesh to run the transport solver on.
   BrickMesh3D & _mesh;
 
-  // The 3D angular quadrature.
+  // The angular quadrature.
   const GCAngularQuadrature _angular_quad;
 
   // The templated equation system responsible for solving for cell-centered and interface fluxes.

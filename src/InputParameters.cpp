@@ -180,6 +180,7 @@ parseInputParameters(const std::string & file_path)
     }
 
     params._num_dims = parseUintParam(m, "dims");
+    params._refinement = parseUintParam(m, "refinement");
     {
       auto dx = m.child("dx");
       if (!dx)
@@ -196,6 +197,8 @@ parseInputParameters(const std::string & file_path)
         std::exit(1);
       }
       parseVecFromString(parseStringParam(ix, "vals"), params._x_intervals);
+      for (auto & i : params._x_intervals)
+        i *= (params._refinement + 1);
     }
 
     if (params._num_dims > 1)
@@ -215,6 +218,8 @@ parseInputParameters(const std::string & file_path)
         std::exit(1);
       }
       parseVecFromString(parseStringParam(iy, "vals"), params._y_intervals);
+      for (auto & i : params._y_intervals)
+        i *= (params._refinement + 1);
     }
 
     if (params._num_dims > 2)
@@ -222,7 +227,7 @@ parseInputParameters(const std::string & file_path)
       auto dz = m.child("dz");
       if (!dz)
       {
-        std::cerr << "Mesh y dimensions have not been provided!" << std::endl;
+        std::cerr << "Mesh z dimensions have not been provided!" << std::endl;
         std::exit(1);
       }
       parseVecFromString(parseStringParam(dz, "vals"), params._dz);
@@ -234,6 +239,8 @@ parseInputParameters(const std::string & file_path)
         std::exit(1);
       }
       parseVecFromString(parseStringParam(iz, "vals"), params._z_intervals);
+      for (auto & i : params._z_intervals)
+        i *= (params._refinement + 1);
     }
 
     {

@@ -72,7 +72,7 @@ private:
 class GCAngularQuadrature
 {
 public:
-  GCAngularQuadrature(unsigned int n_c, unsigned int n_l);
+  GCAngularQuadrature(unsigned int n_c, unsigned int n_l, unsigned int num_dims);
 
   unsigned int order(Octant oct) const;
   void direction(Octant oct, unsigned int n, double & mu, double & eta, double & xi) const;
@@ -93,6 +93,9 @@ private:
   // points, respectively.
   const unsigned int _n_c;
   const unsigned int _n_l;
+
+  // Number of spatial dimensions of the problem.
+  const unsigned int _n_d;
 
   LegendrePolynomial _polar_quadrature;
   ChebyshevPolynomial _azimuthal_quadrature;

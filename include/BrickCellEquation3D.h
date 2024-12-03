@@ -4,10 +4,10 @@
 #include "CartesianCell3D.h"
 
 // An abstract class for other equation systems to derive from.
-class BrickCellEquation
+class BrickCellEquation3D
 {
 public:
-  BrickCellEquation() {}
+  BrickCellEquation3D() {}
 
   virtual void solve(CartesianCell3D & cell, const double & angular_weight,
                      const double & abs_mu, const double & abs_eta,
@@ -15,4 +15,4 @@ public:
                      CertesianFaceSide x_uw, CertesianFaceSide x_dw,
                      CertesianFaceSide y_uw, CertesianFaceSide y_dw,
                      CertesianFaceSide z_uw, CertesianFaceSide z_dw) const = 0;
-}; // class BrickCellEquation
+}; // class BrickCellEquation3D

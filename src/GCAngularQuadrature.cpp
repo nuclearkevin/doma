@@ -114,10 +114,10 @@ ChebyshevPolynomial::ChebyshevPolynomial(unsigned int degree) : _degree(std::mov
 //------------------------------------------------------------------------------
 // Gauss-Legendre-Chebyshev product quadrature here.
 //------------------------------------------------------------------------------
-GCAngularQuadrature::GCAngularQuadrature(unsigned int n_c,
-                                         unsigned int n_l)
+GCAngularQuadrature::GCAngularQuadrature(unsigned int n_c, unsigned int n_l, unsigned int num_dims)
   : _n_c(std::move(n_c)),
     _n_l(std::move(n_l)),
+    _n_d(std::move(num_dims)),
     _polar_quadrature(std::move(n_l)),
     _azimuthal_quadrature(std::move(n_c))
 {
@@ -140,11 +140,14 @@ GCAngularQuadrature::GCAngularQuadrature(unsigned int n_c,
       unordered_etas.emplace_back(std::sqrt(1.0 - (mu * mu)) * std::cos(omega));
       unordered_xis.emplace_back(std::sqrt(1.0 - (mu * mu)) * std::sin(omega));
       unordered_weights.emplace_back(weight);
-      // Negative octant.
-      unordered_mus.emplace_back(-1.0 * mu);
-      unordered_etas.emplace_back(-1.0 * std::sqrt(1.0 - (mu * mu)) * std::cos(omega));
-      unordered_xis.emplace_back(-1.0 * std::sqrt(1.0 - (mu * mu)) * std::sin(omega));
-      unordered_weights.emplace_back(weight);
+      // Negative octant if in 3D.
+      if (_n_d > 2)
+      {
+        unordered_mus.emplace_back(-1.0 * mu);
+        unordered_etas.emplace_back(-1.0 * std::sqrt(1.0 - (mu * mu)) * std::cos(omega));
+        unordered_xis.emplace_back(-1.0 * std::sqrt(1.0 - (mu * mu)) * std::sin(omega));
+        unordered_weights.emplace_back(weight);
+      }
     }
   }
 
