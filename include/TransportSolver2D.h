@@ -24,25 +24,67 @@ public:
     static_assert(std::is_base_of<BrickCellEquation2D, T>::value, "Class must derive from BrickCellEquation2D.");
   }
 
-  bool solve(const double & sit, unsigned int smi, double mgt, unsigned int mmi)
+  bool solve(const double & sit, unsigned int smi, double mgt, unsigned int mgi)
   {
     initializeSolve();
 
     std::cout << "Solving..." << std::endl;
-    // Currently the equivalent of solving a lower-triangular matrix.
-    // TODO: Gauss-Seidel
-    for (unsigned int g = 0u; g < _num_groups; ++g)
+    unsigned int mg_iteration = 0u;
+    double current_residual = 0.0;
+    double previous_norm = 0.0;
+    double current_norm = 0.0;
+    double initial_norm = 0.0;
+    do
     {
-      updateMultigroupSource(g);
-      auto res = sourceIteration(sit, smi, g);
-      if (!res)
-        return res;
-    }
+      std::cout << "Performing multigroup iteration " << mg_iteration;
+      if (mg_iteration != 0u)
+        std::cout <<  ", current multigroup iteration residual: " << current_residual << std::endl;
+      else
+        std::cout << std::endl;
+      std::cout << "----------------------------------------------------------------------------------"
+                << std::endl;
 
-    return true;
+      for (unsigned int g = 0u; g < _num_groups; ++g)
+      {
+        updateMultigroupSource(g);
+        auto res = sourceIteration(sit, smi, g);
+        if (!res)
+          return res;
+      }
+
+      current_norm = mgFluxL2Norm();
+      initial_norm = mg_iteration == 0u ? current_norm : initial_norm;
+      current_residual = std::sqrt(std::abs(current_norm - previous_norm) / initial_norm);
+      previous_norm = current_norm;
+
+      mg_iteration++;
+    } while (mg_iteration < mgi && mgt < current_residual);
+
+    if (mg_iteration < mgi)
+    {
+      std::cout << "Multigroup iteration converged after " << mg_iteration
+                << " iterations with a residual of " << current_residual << std::endl;
+      return true;
+    }
+    else
+    {
+      std::cout << "Multigroup iteration failed to convergence after " << mg_iteration
+                << " iterations with a residual of " << current_residual << std::endl;
+      return false;
+    }
   }
 
 private:
+  double mgFluxL2Norm()
+  {
+    double norm = 0.0;
+    for (auto & cell : _mesh._cells)
+      for (unsigned int g = 0u; g < _num_groups; ++g)
+        norm += std::pow(cell._total_scalar_flux[g] * cell._area, 2.0);
+
+    return norm;
+  }
+
   void updateMultigroupSource(unsigned int g)
   {
     for (auto & cell : _mesh._cells)

@@ -1,7 +1,7 @@
 <doma_inp>
-  <solver solve_type="steady" scheme="tw_dd" num_groups="2" fs_tol="1e-5"
-          mg_tol="1e-3" fs_max_it="100" mg_max_it="100"/>
-  <angular_quad type="gc" np="20" na="20"/>
+  <solver solve_type="steady" scheme="dd" num_groups="2" fs_tol="1e-5"
+          mg_tol="1e-5" fs_max_it="100" mg_max_it="100"/>
+  <angular_quad type="gc" np="10" na="10"/>
   <mesh dims="2" refinement="3">
     <dx vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
     <dy vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
@@ -16,19 +16,19 @@
   <materials>
     <mat block="0">
       <reaction type="total"   mgxs="0.0, 1e-1"/>
-      <reaction type="scatter" mgxs="0.0, 0.0,
+      <reaction type="scatter" mgxs="0.0, 1e-4,
                                      0.0, 5e-2"/>
       <reaction type="source"  mgxs="1.0, 0.0"/>
     </mat>
     <mat block="1">
-      <reaction type="total"   mgxs="1e-4, 1e-4"/>
-      <reaction type="scatter" mgxs="0.0, 0.0,
+      <reaction type="total"   mgxs="1e-5, 1e-4"/>
+      <reaction type="scatter" mgxs="0.0, 1e-7,
                                      1e-5, 5e-5"/>
       <reaction type="source"  mgxs="0.0, 0.0"/>
     </mat>
     <mat block="2">
       <reaction type="total"   mgxs="1e-2, 1e-1"/>
-      <reaction type="scatter" mgxs="0.0, 0.0,
+      <reaction type="scatter" mgxs="0.0, 1e-4,
                                      1e-2, 5e-2"/>
       <reaction type="source"  mgxs="0.0, 0.0"/>
     </mat>

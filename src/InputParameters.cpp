@@ -272,10 +272,7 @@ parseInputParameters(const std::string & file_path)
         if (std::string(rxn.attribute("type").as_string()) == "total")
           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_total);
         else if (std::string(rxn.attribute("type").as_string()) == "scatter")
-        {
           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_g_scatter_mat);
-          std::cout << parseStringParam(rxn, "mgxs") << std::endl;
-        }
         else if (std::string(rxn.attribute("type").as_string()) == "source")
            parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_src);
         else
