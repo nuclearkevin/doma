@@ -36,9 +36,9 @@ public:
     double initial_norm = 0.0;
     do
     {
-      std::cout << "Performing multigroup iteration " << mg_iteration;
+      std::cout << "Performing MGI " << mg_iteration;
       if (mg_iteration != 0u)
-        std::cout <<  ", current multigroup iteration residual: " << current_residual << std::endl;
+        std::cout <<  ", residual = " << current_residual << std::endl;
       else
         std::cout << std::endl;
       std::cout << "----------------------------------------------------------------------------------"
@@ -62,13 +62,13 @@ public:
 
     if (mg_iteration < mgi)
     {
-      std::cout << "Multigroup iteration converged after " << mg_iteration
+      std::cout << "MGI converged after " << mg_iteration
                 << " iterations with a residual of " << current_residual << std::endl;
       return true;
     }
     else
     {
-      std::cout << "Multigroup iteration failed to convergence after " << mg_iteration
+      std::cout << "MGI failed to converge after " << mg_iteration
                 << " iterations with a residual of " << current_residual << std::endl;
       return false;
     }
@@ -92,13 +92,16 @@ private:
       const auto & p = cell.getMatProps();
 
       cell._total_scalar_flux[g] = 0.0;
-      cell._current_iteration_source[g] = 0.5 * p._g_src[g] / M_PI;
+      cell._current_iteration_source[g] = p._g_src.size() != 0u ? 0.5 * p._g_src[g] / M_PI : 0.0;
       cell._current_scalar_flux[g] = 0.0;
 
       for (unsigned int g_prime = 0u; g_prime < _num_groups; ++g_prime)
       {
         if (g_prime != g)
           cell._current_iteration_source[g] += 0.5 * p._g_g_scatter_mat[g * _num_groups + g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+
+        if (p._g_chi_p.size() > 0u)
+          cell._current_iteration_source[g] += 0.5 * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
       }
     }
   }
@@ -109,9 +112,9 @@ private:
     double current_residual = 0.0;
     do
     {
-      std::cout << "Performing source iteration " << source_iteration << " for group " << g;
+      std::cout << "Performing SI " << source_iteration << " for G" << g;
       if (source_iteration != 0u)
-        std::cout <<  ", current source iteration residual: " << current_residual << std::endl;
+        std::cout <<  ", residual = " << current_residual << std::endl;
       else
         std::cout << std::endl;
 
@@ -125,15 +128,15 @@ private:
 
     if (source_iteration < smi)
     {
-      std::cout << "Scattering source iteration converged after " << source_iteration
-                << " iterations with a residual of " << current_residual << " for group "
+      std::cout << "SI converged after " << source_iteration
+                << " iterations with a residual of " << current_residual << " for G"
                 << g << std::endl;
       return true;
     }
     else
     {
-      std::cout << "Scattering source iteration failed to convergence after " << source_iteration
-                << " iterations with a residual of " << current_residual << " for group "
+      std::cout << "SI failed to converge after " << source_iteration
+                << " iterations with a residual of " << current_residual << " for G"
                 << g << std::endl;
       return false;
     }

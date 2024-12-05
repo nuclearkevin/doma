@@ -275,6 +275,10 @@ parseInputParameters(const std::string & file_path)
           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_g_scatter_mat);
         else if (std::string(rxn.attribute("type").as_string()) == "source")
            parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_src);
+        else if (std::string(rxn.attribute("type").as_string()) == "chi_p")
+           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_chi_p);
+        else if (std::string(rxn.attribute("type").as_string()) == "nu_sigma_f")
+           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_prod);
         else
         {
           std::cerr << "Unsupported reaction type " << rxn.attribute("type").as_string() << std::endl;
@@ -296,11 +300,25 @@ parseInputParameters(const std::string & file_path)
                   << "'scatter' only provides " << mat_props._g_g_scatter_mat.size() << "." << std::endl;
         std::exit(1);
       }
-      if (mat_props._g_src.size() != params._num_e_groups)
+      if (mat_props._g_src.size() != params._num_e_groups && mat_props._g_src.size() != 0u)
       {
         std::cerr << "Not enough external sources have been provided! The simulation requires "
                   << params._num_e_groups << " sources; 'source' only provides "
                   << mat_props._g_src.size() << "." << std::endl;
+        std::exit(1);
+      }
+      if (mat_props._g_chi_p.size() != params._num_e_groups && mat_props._g_chi_p.size() != 0u)
+      {
+        std::cerr << "Not enough prompt fission spectra values have been provided! The simulation requires "
+                  << params._num_e_groups << " prompt fission spectra values; 'chi' only provides "
+                  << mat_props._g_chi_p.size() << "." << std::endl;
+        std::exit(1);
+      }
+      if (mat_props._g_prod.size() != params._num_e_groups && mat_props._g_prod.size() != 0u)
+      {
+        std::cerr << "Not enough fission production cross sections have been provided! The simulation requires "
+                  << params._num_e_groups << " fission production cross sections; 'nu_sigma_f' only provides "
+                  << mat_props._g_prod.size() << "." << std::endl;
         std::exit(1);
       }
     }
