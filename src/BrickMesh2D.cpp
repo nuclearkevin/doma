@@ -127,23 +127,36 @@ BrickMesh2D::BrickMesh2D(const std::vector<unsigned int> & nx, const std::vector
 }
 
 void
-BrickMesh2D::addPropsToBlock(unsigned int block, const double & sigma_total, const double & sigma_scattering, const double & fixed_source)
+BrickMesh2D::addPropsToBlock(unsigned int block, const MaterialProps & props)
 {
   for (auto & cell : _cells)
-    if (cell._block_id == block)
-      cell.applyProperties(sigma_total, sigma_scattering, fixed_source);
+  {
+    if (cell._block_id == block && _block_mat_info.count(block) == 0u)
+    {
+      _block_mat_info[block] = props;
+      return;
+    }
+  }
+}
+
+// A function to initialize the group-wise scalar fluxes in each cell.
+void
+BrickMesh2D::initFluxes(unsigned int num_groups)
+{
+  for (auto & cell : _cells)
+    cell.initFluxes(num_groups);
 }
 
 // Returns true if the point exists on the mesh, false if it does not. The flux at that point
 // will be stored in 'returned_flux' if the point is on the mesh.
 bool
-BrickMesh2D::fluxAtPoint(const double & x, const double & y, double & returned_flux) const
+BrickMesh2D::fluxAtPoint(const double & x, const double & y, unsigned int g, double & returned_flux) const
 {
   for (auto & cell : _cells)
   {
     if (cell.pointInCell(x, y))
     {
-      returned_flux = cell._total_scalar_flux;
+      returned_flux = cell._total_scalar_flux[g];
       return true;
     }
   }
@@ -152,11 +165,11 @@ BrickMesh2D::fluxAtPoint(const double & x, const double & y, double & returned_f
 
 // Dump the flux to a text file.
 void
-BrickMesh2D::dumpToTextFile(const std::string & file_name)
+BrickMesh2D::dumpToTextFile(const std::string & file_name, unsigned int g)
 {
   std::ofstream dims(file_name + "_dims.txt", std::ofstream::out);
   std::ofstream blocks(file_name + "_blocks.txt", std::ofstream::out);
-  std::ofstream flux(file_name + "_flux.txt", std::ofstream::out);
+  std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
 
   dims << "num_x: " << _tot_num_x << std::endl;
   dims << "num_y: " << _tot_num_y << std::endl;
@@ -166,7 +179,7 @@ BrickMesh2D::dumpToTextFile(const std::string & file_name)
   for (const auto & cell : _cells)
   {
     blocks << cell._block_id << std::endl;
-    flux << cell._total_scalar_flux << std::endl;
+    flux << cell._total_scalar_flux[g] << std::endl;
   }
   blocks.close();
   flux.close();

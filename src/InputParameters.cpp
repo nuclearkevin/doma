@@ -272,7 +272,10 @@ parseInputParameters(const std::string & file_path)
         if (std::string(rxn.attribute("type").as_string()) == "total")
           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_total);
         else if (std::string(rxn.attribute("type").as_string()) == "scatter")
+        {
           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_g_scatter_mat);
+          std::cout << parseStringParam(rxn, "mgxs") << std::endl;
+        }
         else if (std::string(rxn.attribute("type").as_string()) == "source")
            parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_src);
         else
@@ -280,6 +283,28 @@ parseInputParameters(const std::string & file_path)
           std::cerr << "Unsupported reaction type " << rxn.attribute("type").as_string() << std::endl;
           std::exit(1);
         }
+      }
+
+      if (mat_props._g_total.size() != params._num_e_groups)
+      {
+        std::cerr << "Not enough cross sections have been provided! The simulation requires "
+                  << params._num_e_groups << " cross sections; 'total' only provides "
+                  << mat_props._g_total.size() << "." << std::endl;
+        std::exit(1);
+      }
+      if (mat_props._g_g_scatter_mat.size() != (params._num_e_groups * params._num_e_groups))
+      {
+        std::cerr << "Not enough cross sections have been provided! The simulation requires "
+                  << (params._num_e_groups * params._num_e_groups) << " cross sections; "
+                  << "'scatter' only provides " << mat_props._g_g_scatter_mat.size() << "." << std::endl;
+        std::exit(1);
+      }
+      if (mat_props._g_src.size() != params._num_e_groups)
+      {
+        std::cerr << "Not enough external sources have been provided! The simulation requires "
+                  << params._num_e_groups << " sources; 'source' only provides "
+                  << mat_props._g_src.size() << "." << std::endl;
+        std::exit(1);
       }
     }
   }

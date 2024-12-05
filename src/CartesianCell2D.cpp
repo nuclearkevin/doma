@@ -7,9 +7,6 @@ CartesianCell2D::CartesianCell2D(const double & lx, const double & ly,
                                  unsigned int cell_id, unsigned int block_id, BrickMesh2D * parent_mesh)
   : _cell_id(cell_id),
     _block_id(block_id),
-    _sigma_t(0.0),
-    _sigma_s(0.0),
-    _fixed_src(0.0),
     _x_c(std::move(x_center)),
     _y_c(std::move(y_center)),
     _l_x(std::move(lx)),
@@ -24,11 +21,11 @@ CartesianCell2D::CartesianCell2D(const double & lx, const double & ly,
 { }
 
 void
-CartesianCell2D::applyProperties(const double & sigma_total, const double & sigma_scattering, const double & fixed_source)
+CartesianCell2D::initFluxes(unsigned int num_groups)
 {
-  _sigma_t = std::move(sigma_total);
-  _sigma_s = std::move(sigma_scattering);
-  _fixed_src = std::move(fixed_source);
+  _total_scalar_flux.resize(num_groups, 0.0);
+  _current_iteration_source.resize(num_groups, 0.0);
+  _current_scalar_flux.resize(num_groups, 0.0);
 }
 
 void
@@ -44,6 +41,13 @@ CartesianCell2D::boundaryFlux(CertesianFaceSide side, unsigned int ordinate_inde
     return 0.0;
 
   return 0.0;
+}
+
+// Helper to fetch the material properties of this cell.
+const MaterialProps &
+CartesianCell2D::getMatProps() const
+{
+  return _parent_mesh->_block_mat_info[_block_id];
 }
 
 // Check to see if a point is in the cell.

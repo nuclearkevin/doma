@@ -5,6 +5,8 @@
 
 #include "CartesianCell2D.h"
 
+#include "InputParameters.h"
+
 template <typename T>
 class TransportSolver2D;
 
@@ -17,14 +19,17 @@ public:
               const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 4u> & bcs);
 
   // Set material properties for each cell.
-  void addPropsToBlock(unsigned int block, const double & sigma_total, const double & sigma_scattering, const double & fixed_source);
+  void addPropsToBlock(unsigned int block, const MaterialProps & props);
+
+  // A function to initialize the group-wise scalar fluxes in each cell.
+  void initFluxes(unsigned int num_groups);
 
   // Returns true if the point exists on the mesh, false if it does not. The flux at that point
   // will be stored in 'returned_flux' if the point is on the mesh.
-  bool fluxAtPoint(const double & x, const double & y, double & returned_flux) const;
+  bool fluxAtPoint(const double & x, const double & y, unsigned int g, double & returned_flux) const;
 
   // Dump the flux to a text file.
-  void dumpToTextFile(const std::string & file_name);
+  void dumpToTextFile(const std::string & file_name, unsigned int g);
 
   // A debug helper to print all of the mesh cells.
   void printAllBlocks();
@@ -72,4 +77,7 @@ private:
 
   // An array of boundary angular fluxes for reflective bcs.
   std::array<std::vector<double>, 4u> _boundary_angular_fluxes;
+
+  // Material properties for this mesh.
+  std::unordered_map<unsigned int, MaterialProps> _block_mat_info;
 }; // class BrickMesh2D

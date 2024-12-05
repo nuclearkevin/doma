@@ -53,23 +53,33 @@ main(int argc, char** argv)
                             boundary_conditions);
 
     for (auto & [block, props] : params._block_mat_info)
-      mesh.addPropsToBlock(block, props._g_total[0], props._g_g_scatter_mat[0], props._g_src[0]);
+      mesh.addPropsToBlock(block, props);
+
+    mesh.initFluxes(params._num_e_groups);
 
     if (params._eq_type == EquationType::DD)
     {
-      TransportSolver2D<DiamondDifference2D> solver(mesh, params._num_polar, params._num_azimuthal);
-      if (solver.solve(params._src_it_tol, params._num_src_it))
-        mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")));
+      TransportSolver2D<DiamondDifference2D> solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
+      if (solver.solve(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
+        for (unsigned int g = 0; g < params._num_e_groups; ++g)
+          mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")), g);
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      TransportSolver2D<TWDiamondDifference2D> solver(mesh, params._num_polar, params._num_azimuthal);
-      if (solver.solve(params._src_it_tol, params._num_src_it))
-        mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")));
+      TransportSolver2D<TWDiamondDifference2D> solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
+      if (solver.solve(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
+        for (unsigned int g = 0; g < params._num_e_groups; ++g)
+          mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")), g);
     }
   }
   else if (params._num_dims == 3)
   {
+    if (params._num_e_groups > 1)
+    {
+      std::cerr << "At present the 3D transport solver only supports monoenergetic calculations." << std::endl;
+      std::exit(1);
+    }
+
     std::array<BoundaryCondition, 6u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };

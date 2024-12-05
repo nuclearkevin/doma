@@ -14,8 +14,9 @@ template <typename T>
 class TransportSolver2D
 {
 public:
-  TransportSolver2D(BrickMesh2D & mesh, unsigned int n_l, unsigned int n_c, unsigned int num_threads = 1u)
+  TransportSolver2D(BrickMesh2D & mesh, unsigned int num_groups, unsigned int n_l, unsigned int n_c, unsigned int num_threads = 1u)
     : _num_threads(num_threads),
+      _num_groups(num_groups),
       _mesh(mesh),
       _angular_quad(2u * n_c, 2u * n_l, 2u),
       _eq_system()
@@ -23,42 +24,79 @@ public:
     static_assert(std::is_base_of<BrickCellEquation2D, T>::value, "Class must derive from BrickCellEquation2D.");
   }
 
-  bool solve(const double & source_iteration_tolerance = 1e-5, unsigned int max_iterations = 1000u)
+  bool solve(const double & sit, unsigned int smi, double mgt, unsigned int mmi)
   {
     initializeSolve();
 
     std::cout << "Solving..." << std::endl;
+    // Currently the equivalent of solving a lower-triangular matrix.
+    // TODO: Gauss-Seidel
+    for (unsigned int g = 0u; g < _num_groups; ++g)
+    {
+      updateMultigroupSource(g);
+      auto res = sourceIteration(sit, smi, g);
+      if (!res)
+        return res;
+    }
+
+    return true;
+  }
+
+private:
+  void updateMultigroupSource(unsigned int g)
+  {
+    for (auto & cell : _mesh._cells)
+    {
+      const auto & p = cell.getMatProps();
+
+      cell._total_scalar_flux[g] = 0.0;
+      cell._current_iteration_source[g] = 0.5 * p._g_src[g] / M_PI;
+      cell._current_scalar_flux[g] = 0.0;
+
+      for (unsigned int g_prime = 0u; g_prime < _num_groups; ++g_prime)
+      {
+        if (g_prime != g)
+          cell._current_iteration_source[g] += 0.5 * p._g_g_scatter_mat[g * _num_groups + g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+      }
+    }
+  }
+
+  bool sourceIteration(const double & sit, unsigned int smi, unsigned int g)
+  {
     unsigned int source_iteration = 0u;
     double current_residual = 0.0;
     do
     {
-      std::cout << "Performing source iteration " << source_iteration;
+      std::cout << "Performing source iteration " << source_iteration << " for group " << g;
       if (source_iteration != 0u)
         std::cout <<  ", current source iteration residual: " << current_residual << std::endl;
       else
         std::cout << std::endl;
 
-      sweep();
-      current_residual = computeScatteringResidual();
-      updateScatteringSource();
+      sweep(g);
+      current_residual = computeScatteringResidual(g);
+      updateScatteringSource(g);
 
       source_iteration++;
     }
-    while (source_iteration < max_iterations &&  source_iteration_tolerance < current_residual);
+    while (source_iteration < smi &&  sit < current_residual);
 
-    if (source_iteration < max_iterations)
+    if (source_iteration < smi)
     {
-      std::cout << "Scattering source iteration converged after " << source_iteration << " iterations with a residual of " << current_residual << std::endl;
+      std::cout << "Scattering source iteration converged after " << source_iteration
+                << " iterations with a residual of " << current_residual << " for group "
+                << g << std::endl;
       return true;
     }
     else
     {
-      std::cout << "Scattering source iteration failed to convergence after " << source_iteration << " iterations with a residual of " << current_residual << std::endl;
+      std::cout << "Scattering source iteration failed to convergence after " << source_iteration
+                << " iterations with a residual of " << current_residual << " for group "
+                << g << std::endl;
       return false;
     }
   }
 
-private:
   // Initialize the solver.
   void initializeSolve()
   {
@@ -71,10 +109,13 @@ private:
 
     for (auto & cell : _mesh._cells)
     {
-      cell._total_scalar_flux = 0.0;
-      cell._current_iteration_source = 0.5 * cell._fixed_src / M_PI;
-      cell._current_scalar_flux = 0.0;
-
+      const auto & p = cell.getMatProps();
+      for (unsigned int g = 0; g < _num_groups; ++g)
+      {
+        cell._total_scalar_flux[g] = 0.0;
+        cell._current_iteration_source[g] = 0.0;
+        cell._current_scalar_flux[g] = 0.0;
+      }
       cell._interface_angular_fluxes.fill(0.0);
     }
   }
@@ -106,13 +147,15 @@ private:
   }
 
   // Update the scattering source.
-  void updateScatteringSource()
+  void updateScatteringSource(unsigned int g)
   {
     for (auto & cell : _mesh._cells)
     {
-      cell._total_scalar_flux += cell._current_scalar_flux;
-      cell._current_iteration_source = 0.5 * cell._sigma_s * cell._current_scalar_flux / M_PI;
-      cell._current_scalar_flux = 0.0;
+      const auto & p = cell.getMatProps();
+
+      cell._total_scalar_flux[g] += cell._current_scalar_flux[g];
+      cell._current_iteration_source[g] = 0.5 * p._g_g_scatter_mat[g * _num_groups + g] * cell._current_scalar_flux[g] / M_PI;
+      cell._current_scalar_flux[g] = 0.0;
 
       cell._interface_angular_fluxes.fill(0.0);
     }
@@ -120,21 +163,21 @@ private:
 
   // Compute the scattering residual to check for source iteration convergence.
   // We use a relative error metric in the L2 integral norm.
-  double computeScatteringResidual()
+  double computeScatteringResidual(unsigned int g)
   {
     double diff_L2 = 0.0;
     double total_L2 = 0.0;
     for (auto & cell : _mesh._cells)
     {
-      diff_L2 += std::pow(cell._current_scalar_flux, 2.0) * cell._area;
-      total_L2 += std::pow(cell._total_scalar_flux + cell._current_scalar_flux, 2.0) * cell._area;
+      diff_L2 += std::pow(cell._current_scalar_flux[g], 2.0) * cell._area;
+      total_L2 += std::pow(cell._total_scalar_flux[g] + cell._current_scalar_flux[g], 2.0) * cell._area;
     }
 
-    return std::sqrt(diff_L2) / std::sqrt(total_L2);
+    return total_L2 > 1e-8 ? std::sqrt(diff_L2) / std::sqrt(total_L2) : 0.0;
   }
 
   // Invert the streaming and collision operator with a sweep.
-  void sweep()
+  void sweep(unsigned int g)
   {
     double mu = 0.0;
     double eta = 0.0;
@@ -160,7 +203,7 @@ private:
         abs_eta = std::abs(eta);
         abs_xi = std::abs(xi);
 
-        sweepPPP(abs_mu, abs_eta, abs_xi, weight, n);
+        sweepPPP(abs_mu, abs_eta, abs_xi, weight, n, g);
         updateBoundaryAngularFluxes(n, current_oct,
                                     CertesianFaceSide::Left, CertesianFaceSide::Right,  // x
                                     CertesianFaceSide::Back, CertesianFaceSide::Front); // z
@@ -181,7 +224,7 @@ private:
         abs_eta = std::abs(eta);
         abs_xi = std::abs(xi);
 
-        sweepPMP(abs_mu, abs_eta, abs_xi, weight, n);
+        sweepPMP(abs_mu, abs_eta, abs_xi, weight, n, g);
         updateBoundaryAngularFluxes(n, current_oct,
                                     CertesianFaceSide::Left, CertesianFaceSide::Right,  // x
                                     CertesianFaceSide::Front, CertesianFaceSide::Back); // z
@@ -202,7 +245,7 @@ private:
         abs_eta = std::abs(eta);
         abs_xi = std::abs(xi);
 
-        sweepMPP(abs_mu, abs_eta, abs_xi, weight, n);
+        sweepMPP(abs_mu, abs_eta, abs_xi, weight, n, g);
         updateBoundaryAngularFluxes(n, current_oct,
                                     CertesianFaceSide::Right, CertesianFaceSide::Left,  // x
                                     CertesianFaceSide::Back, CertesianFaceSide::Front); // z
@@ -223,7 +266,7 @@ private:
         abs_eta = std::abs(eta);
         abs_xi = std::abs(xi);
 
-        sweepMMP(abs_mu, abs_eta, abs_xi, weight, n);
+        sweepMMP(abs_mu, abs_eta, abs_xi, weight, n, g);
         updateBoundaryAngularFluxes(n, current_oct,
                                     CertesianFaceSide::Right, CertesianFaceSide::Left,  // x
                                     CertesianFaceSide::Front, CertesianFaceSide::Back); // z
@@ -232,7 +275,7 @@ private:
   }
 
   // Individual sweeping functions for each octant.
-  void sweepPPP(const double & abs_mu, const double & abs_eta, const double & abs_xi, const double & weight, unsigned int ordinate_index)
+  void sweepPPP(const double & abs_mu, const double & abs_eta, const double & abs_xi, const double & weight, unsigned int ordinate_index, unsigned int g)
   {
     // Y second.
     for (unsigned int column = 0u; column < _mesh._tot_num_y; ++column)
@@ -241,14 +284,14 @@ private:
       for (unsigned int row = 0u; row < _mesh._tot_num_x; ++row)
       {
         auto & cell = _mesh._cells[column * _mesh._tot_num_x + row];
-        _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index,
+        _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                          CertesianFaceSide::Left, CertesianFaceSide::Right,  // x
                          CertesianFaceSide::Back, CertesianFaceSide::Front); // z
       }
     }
   }
 
-  void sweepPMP(const double & abs_mu, const double & abs_eta, const double & abs_xi, const double & weight, unsigned int ordinate_index)
+  void sweepPMP(const double & abs_mu, const double & abs_eta, const double & abs_xi, const double & weight, unsigned int ordinate_index, unsigned int g)
   {
     unsigned int column;
     // Y second.
@@ -259,14 +302,14 @@ private:
       for (unsigned int row = 0u; row < _mesh._tot_num_x; ++row)
       {
         auto & cell =_mesh._cells[column * _mesh._tot_num_x + row];
-        _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index,
+        _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                          CertesianFaceSide::Left, CertesianFaceSide::Right,  // x
                          CertesianFaceSide::Front, CertesianFaceSide::Back); // z
       }
     }
   }
 
-  void sweepMPP(const double & abs_mu, const double & abs_eta, const double & abs_xi, const double & weight, unsigned int ordinate_index)
+  void sweepMPP(const double & abs_mu, const double & abs_eta, const double & abs_xi, const double & weight, unsigned int ordinate_index, unsigned int g)
   {
     unsigned int row;
     // Y second.
@@ -277,14 +320,14 @@ private:
       while (row --> 0)
       {
         auto & cell =_mesh._cells[column * _mesh._tot_num_x + row];
-        _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index,
+        _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                          CertesianFaceSide::Right, CertesianFaceSide::Left,  // x
                          CertesianFaceSide::Back, CertesianFaceSide::Front); // z
       }
     }
   }
 
-  void sweepMMP(const double & abs_mu, const double & abs_eta, const double & abs_xi, const double & weight, unsigned int ordinate_index)
+  void sweepMMP(const double & abs_mu, const double & abs_eta, const double & abs_xi, const double & weight, unsigned int ordinate_index, unsigned int g)
   {
     unsigned int column;
     unsigned int row;
@@ -297,7 +340,7 @@ private:
       while (row --> 0)
       {
         auto & cell =_mesh._cells[column * _mesh._tot_num_x + row];
-        _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index,
+        _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                          CertesianFaceSide::Right, CertesianFaceSide::Left,  // x
                          CertesianFaceSide::Front, CertesianFaceSide::Back); // z
       }
@@ -305,6 +348,8 @@ private:
   }
 
   const unsigned int _num_threads;
+
+  const unsigned int _num_groups;
 
   // The mesh to run the transport solver on.
   BrickMesh2D & _mesh;
