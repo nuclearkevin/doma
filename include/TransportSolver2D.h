@@ -91,7 +91,6 @@ private:
     {
       const auto & p = cell.getMatProps();
 
-      cell._total_scalar_flux[g] = 0.0;
       cell._current_iteration_source[g] = p._g_src.size() != 0u ? 0.5 * p._g_src[g] / M_PI : 0.0;
       cell._current_scalar_flux[g] = 0.0;
 
@@ -101,8 +100,9 @@ private:
           cell._current_iteration_source[g] += 0.5 * p._g_g_scatter_mat[g * _num_groups + g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
 
         if (p._g_chi_p.size() > 0u)
-          cell._current_iteration_source[g] += 0.5 * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+            cell._current_iteration_source[g] += 0.5 * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
       }
+      cell._total_scalar_flux[g] = 0.0;
     }
   }
 

@@ -34,6 +34,7 @@ def main():
   plt.colorbar()
   plt.savefig(dir_path + "/" + input_name + "_g" + str(cli_args.grp) + "_flux.png", format='png')
   plt.show()
+  print(np.max(raw_flux))
 
 if __name__ == "__main__":
     main()
