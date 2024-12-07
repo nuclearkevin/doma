@@ -3,11 +3,9 @@
 #include <cmath>
 #include <iostream>
 
-#include "BrickCellEquation3D.h"
-
 // A class which implements the theta-weighted diamond difference cell balance equations.
 // The values of theta are the ones used by TORT and DENOVO.
-class TWDiamondDifference3D : public BrickCellEquation3D
+class TWDiamondDifference3D
 {
 public:
   TWDiamondDifference3D() = default;
@@ -17,7 +15,7 @@ public:
              const double & abs_xi, unsigned int ordinate_index,
              CertesianFaceSide x_uw, CertesianFaceSide x_dw,
              CertesianFaceSide y_uw, CertesianFaceSide y_dw,
-             CertesianFaceSide z_uw, CertesianFaceSide z_dw) const override final
+             CertesianFaceSide z_uw, CertesianFaceSide z_dw) const
   {
     constexpr double theta = 0.9;
     constexpr double theta_s = 0.9;

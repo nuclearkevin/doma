@@ -2,10 +2,8 @@
 
 #include <cmath>
 
-#include "BrickCellEquation3D.h"
-
 // A class which implements the diamond difference cell balance equations.
-class DiamondDifference3D: public BrickCellEquation3D
+class DiamondDifference3D
 {
 public:
   DiamondDifference3D() = default;
@@ -15,7 +13,7 @@ public:
              const double & abs_xi, unsigned int ordinate_index,
              CertesianFaceSide x_uw, CertesianFaceSide x_dw,
              CertesianFaceSide y_uw, CertesianFaceSide y_dw,
-             CertesianFaceSide z_uw, CertesianFaceSide z_dw) const override final
+             CertesianFaceSide z_uw, CertesianFaceSide z_dw) const
   {
     // Grab the upwind interfacing angular fluxes. The conditions handle the vacuum boundary conditions.
     double x_uw_af = cell.neighbor(x_uw) ? cell.neighbor(x_uw)->interfaceFlux(x_dw) : cell.boundaryFlux(x_uw, ordinate_index);

@@ -1,10 +1,7 @@
-#include "TransportSolver2D.h"
-
-#include "DiamondDifference3D.h"
-#include "TWDiamondDifference3D.h"
-#include "TransportSolver3D.h"
-
 #include "InputParameters.h"
+
+#include "TransportSolver2D.h"
+#include "TransportSolver3D.h"
 
 #include "argparse/argparse.hpp"
 
@@ -24,7 +21,7 @@ main(int argc, char** argv)
   {
     args.parse_args(argc, argv);
   }
-  catch (const std::exception& err)
+  catch (const std::exception & err)
   {
     std::cerr << err.what() << std::endl;
     std::cerr << args;
@@ -93,14 +90,14 @@ main(int argc, char** argv)
 
     if (params._eq_type == EquationType::DD)
     {
-      TransportSolver3D<DiamondDifference3D> solver(mesh, params._num_polar, params._num_azimuthal);
-      if (solver.solve(params._src_it_tol, params._num_src_it))
+      DDTransportSolver3D solver(mesh, params._num_polar, params._num_azimuthal);
+      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it))
         mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      TransportSolver3D<TWDiamondDifference3D> solver(mesh, params._num_polar, params._num_azimuthal);
-      if (solver.solve(params._src_it_tol, params._num_src_it))
+      TWDDTransportSolver3D solver(mesh, params._num_polar, params._num_azimuthal);
+      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it))
         mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
   }
