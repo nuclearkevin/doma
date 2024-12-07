@@ -1,5 +1,3 @@
-#include "DiamondDifference2D.h"
-#include "TWDiamondDifference2D.h"
 #include "TransportSolver2D.h"
 
 #include "DiamondDifference3D.h"
@@ -12,6 +10,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <filesystem>
 
 int
 main(int argc, char** argv)
@@ -32,8 +31,8 @@ main(int argc, char** argv)
     std::exit(1);
   }
 
-  auto inp_file = args.get<std::string>("--input_file");
-  const auto params = parseInputParameters(inp_file);
+  auto inp_path = std::filesystem::path(args.get<std::string>("--input_file"));
+  const auto params = parseInputParameters(inp_path.string());
 
   if (params._num_dims == 1)
   {
@@ -55,21 +54,17 @@ main(int argc, char** argv)
     for (auto & [block, props] : params._block_mat_info)
       mesh.addPropsToBlock(block, props);
 
-    mesh.initFluxes(params._num_e_groups);
-
     if (params._eq_type == EquationType::DD)
     {
-      TransportSolver2D<DiamondDifference2D> solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
-      if (solver.solve(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-        for (unsigned int g = 0; g < params._num_e_groups; ++g)
-          mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")), g);
+      TWDDTransportSolver2D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
+      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
+        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      TransportSolver2D<TWDiamondDifference2D> solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
-      if (solver.solve(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-        for (unsigned int g = 0; g < params._num_e_groups; ++g)
-          mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")), g);
+      DDTransportSolver2D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
+      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
+        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
   }
   else if (params._num_dims == 3)
@@ -100,13 +95,13 @@ main(int argc, char** argv)
     {
       TransportSolver3D<DiamondDifference3D> solver(mesh, params._num_polar, params._num_azimuthal);
       if (solver.solve(params._src_it_tol, params._num_src_it))
-        mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")));
+        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
       TransportSolver3D<TWDiamondDifference3D> solver(mesh, params._num_polar, params._num_azimuthal);
       if (solver.solve(params._src_it_tol, params._num_src_it))
-        mesh.dumpToTextFile(inp_file.substr(0, inp_file.find_first_of(".")));
+        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
   }
   else

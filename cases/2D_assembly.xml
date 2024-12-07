@@ -1,7 +1,7 @@
 <doma_inp>
-  <solver solve_type="steady" scheme="tw_dd" num_groups="2" fs_tol="1e-5"
+  <solver solve_type="steady" scheme="tw_dd" num_groups="3" fs_tol="1e-5"
           mg_tol="1e-5" fs_max_it="500" mg_max_it="500"/>
-  <angular_quad type="gc" np="5" na="5"/>
+  <angular_quad type="gc" np="3" na="3"/>
   <mesh dims="2" refinement="2">
     <dx     vals="2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0"/>
     <dy     vals="2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0"/>
@@ -23,22 +23,25 @@
   </mesh>
   <materials>
     <mat block="1">
-      <reaction type="total"   mgxs="0.5032727628521897, 0.6809856541732314"/>
-      <reaction type="scatter" mgxs="0.47266162767000225,    0.0003236292380798533,
-                                     0.00021778375577062326, 0.44679158201267094"/>
-      <reaction type="nu_sigma_f" mgxs="0.01932494313806259, 0.30965820957601503"/>
-      <reaction type="chi_p" mgxs="1.0, 0.0"/>
+      <reaction type="total"   mgxs="0.28823931998966273, 0.6121550646020345, 0.6498843211400337"/>
+      <reaction type="scatter" transpose="true" mgxs="0.2696681212115867, 0.005663016987588101,  0.0,
+                                                      0.0,                0.5631259764962967,    0.00031530783551354075,
+                                                      0.0,                8.488689589514462e-05, 0.444449876191741"/>
+      <reaction type="nu_sigma_f" mgxs="0.02440282934749146, 0.01167125916525041, 0.2690076105479233"/>
+      <reaction type="chi_p" mgxs="0.9832924169455022, 0.016675708464579306, 0.0"/>
     </mat>
     <mat block="0">
-      <reaction type="total"   mgxs="0.41548158398515134, 0.46214134963683945"/>
-      <reaction type="scatter" mgxs="0.411411853338597, 7.96456456772279e-05,
-                                     0.00405479491889142, 0.4617699691178589"/>
+      <reaction type="total"   mgxs="0.2630757892651728, 0.42634778734564904, 0.4632858789865285"/>
+      <reaction type="scatter" transpose="true" mgxs="0.24459597671900649, 0.018446629684433495,  0.0,
+                                                      0.0,                 0.42120560801300017,   0.005135616555681365,
+                                                      0.0,                 1.174650715992576e-05, 0.4630235552906912"/>
     </mat>
     <mat block="2">
-      <reaction type="total"   mgxs="0.0, 0.0"/>
-      <reaction type="scatter" mgxs="0.0, 0.0,
-                                     0.0, 0.0"/>
-      <reaction type="source" mgxs="1.0, 0.0"/>
+      <reaction type="total"   mgxs="0.0, 0.0, 0.0"/>
+      <reaction type="scatter" mgxs="0.0, 0.0, 0.0,
+                                     0.0, 0.0, 0.0,
+                                     0.0, 0.0, 0.0"/>
+      <reaction type="source" mgxs="1.0, 0.0, 0.0"/>
     </mat>
   </materials>
 </doma_inp>

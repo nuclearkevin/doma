@@ -2,10 +2,8 @@
 
 #include <cmath>
 
-#include "BrickCellEquation2D.h"
-
 // A class which implements the diamond difference cell balance equations.
-class DiamondDifference2D: public BrickCellEquation2D
+class DiamondDifference2D
 {
 public:
   DiamondDifference2D() = default;
@@ -15,7 +13,7 @@ public:
              const double & abs_xi, unsigned int ordinate_index,
              unsigned int group, CertesianFaceSide x_uw,
              CertesianFaceSide x_dw, CertesianFaceSide y_uw,
-             CertesianFaceSide y_dw) const override final
+             CertesianFaceSide y_dw) const
   {
     const auto & p = cell.getMatProps();
 

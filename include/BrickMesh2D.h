@@ -29,7 +29,7 @@ public:
   bool fluxAtPoint(const double & x, const double & y, unsigned int g, double & returned_flux) const;
 
   // Dump the flux to a text file.
-  void dumpToTextFile(const std::string & file_name, unsigned int g);
+  void dumpToTextFile(const std::string & file_name);
 
   // A debug helper to print all of the mesh cells.
   void printAllBlocks();
@@ -58,6 +58,9 @@ private:
   // Length of each mesh subdivision.
   const std::vector<double> _dx;
   const std::vector<double> _dy;
+
+  // Number of energy groups.
+  unsigned int _num_groups;
 
   // The unique material blocks.
   const std::vector<unsigned int> _blocks;

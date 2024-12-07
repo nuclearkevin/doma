@@ -12,6 +12,7 @@ BrickMesh2D::BrickMesh2D(const std::vector<unsigned int> & nx, const std::vector
     _ny(ny),
     _tot_num_x(0u),
     _tot_num_y(0u),
+    _num_groups(1u),
     _dx(dx),
     _dy(dy),
     _blocks(blocks),
@@ -143,6 +144,7 @@ BrickMesh2D::addPropsToBlock(unsigned int block, const MaterialProps & props)
 void
 BrickMesh2D::initFluxes(unsigned int num_groups)
 {
+  _num_groups = num_groups;
   for (auto & cell : _cells)
     cell.initFluxes(num_groups);
 }
@@ -165,24 +167,30 @@ BrickMesh2D::fluxAtPoint(const double & x, const double & y, unsigned int g, dou
 
 // Dump the flux to a text file.
 void
-BrickMesh2D::dumpToTextFile(const std::string & file_name, unsigned int g)
+BrickMesh2D::dumpToTextFile(const std::string & file_name)
 {
   std::ofstream dims(file_name + "_dims.txt", std::ofstream::out);
   std::ofstream blocks(file_name + "_blocks.txt", std::ofstream::out);
-  std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
-
   dims << "num_x: " << _tot_num_x << std::endl;
   dims << "num_y: " << _tot_num_y << std::endl;
+  dims << "num_g: " << _num_groups << std::endl;
   dims.close();
 
-  flux << std::setprecision(6);
-  for (const auto & cell : _cells)
+  for (unsigned int g = 0u; g < _num_groups; ++g)
   {
-    blocks << cell._block_id << std::endl;
-    flux << cell._total_scalar_flux[g] << std::endl;
+    std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
+
+    flux << std::setprecision(6);
+    for (const auto & cell : _cells)
+    {
+      flux << cell._total_scalar_flux[g] << std::endl;
+
+      if (g == 0u)
+        blocks << cell._block_id << std::endl;
+    }
+    flux.close();
   }
   blocks.close();
-  flux.close();
 }
 
 void

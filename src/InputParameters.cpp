@@ -83,7 +83,7 @@ parseStringParam(const pugi::xml_node & node, const std::string & p_name)
   {
     std::cerr << "You must provide a valid param in " << p_name << "!" << std::endl;
     std::exit(1);
-    return 0;
+    return "";
   }
 }
 
@@ -272,13 +272,32 @@ parseInputParameters(const std::string & file_path)
         if (std::string(rxn.attribute("type").as_string()) == "total")
           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_total);
         else if (std::string(rxn.attribute("type").as_string()) == "scatter")
+        {
           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_g_scatter_mat);
+          if (mat_props._g_g_scatter_mat.size() != (params._num_e_groups * params._num_e_groups))
+          {
+            std::cerr << "Not enough cross sections have been provided! The simulation requires "
+                      << (params._num_e_groups * params._num_e_groups) << " cross sections; "
+                      << "'scatter' only provides " << mat_props._g_g_scatter_mat.size() << "." << std::endl;
+            std::exit(1);
+          }
+
+          if (rxn.attribute("transpose").as_bool(false))
+          {
+            auto tr = mat_props._g_g_scatter_mat;
+            for (unsigned int r = 0u; r < params._num_e_groups; ++r)
+              for (unsigned int c = 0u; c < params._num_e_groups; ++c)
+                mat_props._g_g_scatter_mat[r * params._num_e_groups + c] = tr[c * params._num_e_groups + r];
+          }
+        }
         else if (std::string(rxn.attribute("type").as_string()) == "source")
            parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_src);
         else if (std::string(rxn.attribute("type").as_string()) == "chi_p")
            parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_chi_p);
         else if (std::string(rxn.attribute("type").as_string()) == "nu_sigma_f")
            parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_prod);
+        else if (std::string(rxn.attribute("type").as_string()) == "inv_vel")
+          parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_inv_v);
         else
         {
           std::cerr << "Unsupported reaction type " << rxn.attribute("type").as_string() << std::endl;
@@ -319,6 +338,13 @@ parseInputParameters(const std::string & file_path)
         std::cerr << "Not enough fission production cross sections have been provided! The simulation requires "
                   << params._num_e_groups << " fission production cross sections; 'nu_sigma_f' only provides "
                   << mat_props._g_prod.size() << "." << std::endl;
+        std::exit(1);
+      }
+      if (mat_props._g_inv_v.size() != params._num_e_groups && params._mode == RunMode::Transient)
+      {
+        std::cerr << "Not enough inverse velocities have been provided! The simulation requires "
+                  << params._num_e_groups << " inverse velocities when running in transient mode; "
+                  << "'inv_vel' only provides " << mat_props._g_inv_v.size() << "." << std::endl;
         std::exit(1);
       }
     }
