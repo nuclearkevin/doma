@@ -80,16 +80,16 @@ TransportSolver1D<T>::updateMultigroupSource(unsigned int g)
   {
     const auto & p = cell.getMatProps();
 
-    cell._current_iteration_source[g] = p._g_src.size() != 0u ? 0.5 * p._g_src[g] / M_PI : 0.0;
+    cell._current_iteration_source[g] = p._g_src.size() != 0u ? 0.5 * p._g_src[g] : 0.0;
     cell._current_scalar_flux[g] = 0.0;
 
     for (unsigned int g_prime = 0u; g_prime < _num_groups; ++g_prime)
     {
       if (g_prime != g)
-        cell._current_iteration_source[g] += 0.5 * p._g_g_scatter_mat[g * _num_groups + g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+        cell._current_iteration_source[g] += 0.5 * p._g_g_scatter_mat[g * _num_groups + g_prime] * cell._total_scalar_flux[g_prime];
 
       if (p._g_chi_p.size() > 0u)
-        cell._current_iteration_source[g] += 0.5 * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+        cell._current_iteration_source[g] += 0.5 * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime];
     }
     cell._total_scalar_flux[g] = 0.0;
   }
@@ -166,7 +166,7 @@ TransportSolver1D<T>::updateScatteringSource(unsigned int g)
     const auto & p = cell.getMatProps();
 
     cell._total_scalar_flux[g] += cell._current_scalar_flux[g];
-    cell._current_iteration_source[g] = 0.5 * p._g_g_scatter_mat[g * _num_groups + g] * cell._current_scalar_flux[g] / M_PI;
+    cell._current_iteration_source[g] = 0.5 * p._g_g_scatter_mat[g * _num_groups + g] * cell._current_scalar_flux[g];
     cell._current_scalar_flux[g] = 0.0;
 
     cell._interface_angular_fluxes.fill(0.0);
@@ -200,7 +200,7 @@ TransportSolver1D<T>::sweep(unsigned int g)
   {
     for (unsigned int n = 0u; n < _angular_quad.order() / 2u; ++n)
     {
-      _angular_quad.direction(n);
+      mu = _angular_quad.direction(n);
       weight = _angular_quad.weight(n);
 
       // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
@@ -215,7 +215,7 @@ TransportSolver1D<T>::sweep(unsigned int g)
   {
     for (unsigned int n = _angular_quad.order() / 2u; n < _angular_quad.order(); ++n)
     {
-      _angular_quad.direction(n);
+      mu = _angular_quad.direction(n);
       weight = _angular_quad.weight(n);
 
       // We use the absolute value of each ordinate as the system of equations ends up being symmetrical

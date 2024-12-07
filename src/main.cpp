@@ -1,5 +1,6 @@
 #include "InputParameters.h"
 
+#include "TransportSolver1D.h"
 #include "TransportSolver2D.h"
 #include "TransportSolver3D.h"
 
@@ -33,8 +34,27 @@ main(int argc, char** argv)
 
   if (params._num_dims == 1)
   {
-    std::cerr << "1D transport solves are currently not supported." << std::endl;
-    std::exit(1);
+    std::array<BoundaryCondition, 2u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
+
+    auto mesh = BrickMesh1D(params._x_intervals,
+                            params._dx,
+                            params._blocks,
+                            boundary_conditions);
+
+    for (auto & [block, props] : params._block_mat_info)
+      mesh.addPropsToBlock(block, props);
+
+    if (params._eq_type == EquationType::DD)
+    {
+      DDTransportSolver1D solver(mesh, params._num_e_groups, params._num_polar);
+      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
+        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+    }
+    else if (params._eq_type == EquationType::TW_DD)
+    {
+      std::cerr << "At present 1D calculations do not support theta-weighted diamond differences!" << std::endl;
+      std::exit(1);
+    }
   }
   else if (params._num_dims == 2)
   {
@@ -53,13 +73,13 @@ main(int argc, char** argv)
 
     if (params._eq_type == EquationType::DD)
     {
-      TWDDTransportSolver2D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
+      DDTransportSolver2D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
       if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
         mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      DDTransportSolver2D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
+      TWDDTransportSolver2D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
       if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
         mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
