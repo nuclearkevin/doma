@@ -9,10 +9,10 @@ enum class CertesianAxis
 
 enum class CertesianFaceSide
 {
-  Front = 0u, // Face normal along +y.
-  Back = 1u,  // Face normal along -y.
-  Right = 2u, // Face normal along +x.
-  Left = 3u,  // Face normal along -x.
+  Right = 0u, // Face normal along +x.
+  Left = 1u,  // Face normal along -x.
+  Front = 2u, // Face normal along +y.
+  Back = 3u,  // Face normal along -y.
   Top = 4u,   // Face normal along +z.
   Bottom = 5u // Face normal along -z.
 };

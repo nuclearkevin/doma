@@ -1,7 +1,9 @@
 #pragma once
 
+#include "TransportBase.h"
+#include "CartesianCell3D.h"
+
 #include <cmath>
-#include <iostream>
 
 // A class which implements the theta-weighted diamond difference cell balance equations.
 // The values of theta are the ones used by TORT and DENOVO.

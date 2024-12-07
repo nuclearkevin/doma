@@ -1,5 +1,8 @@
 #pragma once
 
+#include "TransportBase.h"
+#include "CartesianCell3D.h"
+
 #include <cmath>
 
 // A class which implements the diamond difference cell balance equations.
