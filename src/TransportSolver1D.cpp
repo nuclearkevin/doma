@@ -19,7 +19,7 @@ TransportSolver1D<T>::solveFixedSource(const double & sit, unsigned int smi, dou
   std::cout << "Solving..." << std::endl;
   unsigned int mg_iteration = 0u;
   double current_residual = 0.0;
-  double previous_norm = 0.0;
+  double previous_norm = 1.0;
   double current_norm = 0.0;
   do
   {
@@ -44,7 +44,7 @@ TransportSolver1D<T>::solveFixedSource(const double & sit, unsigned int smi, dou
     previous_norm = current_norm;
 
     mg_iteration++;
-  } while (mg_iteration < mgi && mgt < current_residual);
+  } while (mg_iteration < mgi && mgt < current_residual && _num_groups > 1u);
 
   if (mg_iteration < mgi)
   {
