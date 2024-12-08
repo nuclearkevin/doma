@@ -25,7 +25,6 @@ GCAngularQuadrature::GCAngularQuadrature(unsigned int n_c, unsigned int n_l, uns
     {
       const auto weight = _polar_quadrature.weight(i - 1u) * _azimuthal_quadrature.weight(j - 1u);
       const auto & mu = _polar_quadrature.root(i - 1u);
-      std::cout << mu << " " << i << std::endl;
       const auto & omega = _azimuthal_quadrature.angularRoot(j - 1u);
 
       // Positive octant.
