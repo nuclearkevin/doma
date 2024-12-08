@@ -48,8 +48,11 @@ TransportSolver1D<T>::solveFixedSource(const double & sit, unsigned int smi, dou
 
   if (mg_iteration < mgi)
   {
-    std::cout << "MGI converged after " << mg_iteration
-              << " iterations with a residual of " << current_residual << std::endl;
+    if (_num_groups > 1u)
+    {
+      std::cout << "MGI converged after " << mg_iteration
+                << " iterations with a residual of " << current_residual << std::endl;
+    }
     return true;
   }
   else

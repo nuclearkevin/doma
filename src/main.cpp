@@ -39,10 +39,9 @@ main(int argc, char** argv)
     auto mesh = BrickMesh1D(params._x_intervals,
                             params._dx,
                             params._blocks,
-                            boundary_conditions);
-
-    for (auto & [block, props] : params._block_mat_info)
-      mesh.addPropsToBlock(block, props);
+                            boundary_conditions,
+                            params._block_mat_info);
+    mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)
     {
@@ -66,10 +65,9 @@ main(int argc, char** argv)
                             params._dx,
                             params._dy,
                             params._blocks,
-                            boundary_conditions);
-
-    for (auto & [block, props] : params._block_mat_info)
-      mesh.addPropsToBlock(block, props);
+                            boundary_conditions,
+                            params._block_mat_info);
+    mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)
     {
@@ -86,12 +84,6 @@ main(int argc, char** argv)
   }
   else if (params._num_dims == 3)
   {
-    if (params._num_e_groups > 1)
-    {
-      std::cerr << "At present the 3D transport solver only supports monoenergetic calculations." << std::endl;
-      std::exit(1);
-    }
-
     std::array<BoundaryCondition, 6u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
@@ -103,21 +95,20 @@ main(int argc, char** argv)
                             params._dy,
                             params._dz,
                             params._blocks,
-                            boundary_conditions);
-
-    for (auto & [block, props] : params._block_mat_info)
-      mesh.addPropsToBlock(block, props._g_total[0], props._g_g_scatter_mat[0], props._g_src[0]);
+                            boundary_conditions,
+                            params._block_mat_info);
+    mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)
     {
-      DDTransportSolver3D solver(mesh, params._num_polar, params._num_azimuthal);
-      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it))
+      DDTransportSolver3D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
+      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
         mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      TWDDTransportSolver3D solver(mesh, params._num_polar, params._num_azimuthal);
-      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it))
+      TWDDTransportSolver3D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
+      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
         mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
     }
   }

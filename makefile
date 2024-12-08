@@ -1,4 +1,4 @@
-COMPILE_FLAGS := g++ -g -std=c++17 -I ./include -I ./contrib/pugixml/src -I ./contrib/argparse/include
+COMPILE_FLAGS := g++ -std=c++17 -I ./include -I ./contrib/pugixml/src -I ./contrib/argparse/include
 
 makebuild: dir pugi doma
 

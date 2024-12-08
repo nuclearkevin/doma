@@ -7,7 +7,8 @@
 
 BrickMesh3D::BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector<unsigned int> & ny, const std::vector<unsigned int> & nz,
                          const std::vector<double> & dx, const std::vector<double> & dy, const std::vector<double> & dz,
-                         const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 6u> & bcs)
+                         const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 6u> & bcs,
+                         const std::unordered_map<unsigned int, MaterialProps> & props)
   : _nx(nx),
     _ny(ny),
     _nz(nz),
@@ -20,12 +21,13 @@ BrickMesh3D::BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector
     _blocks(blocks),
     _num_cells(0u),
     _total_volume(0.0),
-    _bcs(bcs)
+    _bcs(bcs),
+    _block_mat_info(props)
 {
   if (_nx.size() * _ny.size() * _nz.size() != _blocks.size())
   {
     std::cout << "Error: The blocks vector is not equal to the number of subdivisions!" << std::endl;
-    exit(0);
+    exit(1);
   }
 
   for (auto nx : _nx)
@@ -174,23 +176,36 @@ BrickMesh3D::BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector
 }
 
 void
-BrickMesh3D::addPropsToBlock(unsigned int block, const double & sigma_total, const double & sigma_scattering, const double & fixed_source)
+BrickMesh3D::validateProps()
 {
+  for (const auto & cell : _cells)
+  {
+    if (_block_mat_info.count(cell._block_id) == 0)
+    {
+      std::cout << "Block " << cell._block_id << " (defined on the mesh) has no material properties!" << std::endl;
+      std::exit(1);
+    }
+  }
+}
+
+void
+BrickMesh3D::initFluxes(unsigned int num_groups)
+{
+  _num_groups = num_groups;
   for (auto & cell : _cells)
-    if (cell._block_id == block)
-      cell.applyProperties(sigma_total, sigma_scattering, fixed_source);
+    cell.initFluxes(num_groups);
 }
 
 // Returns true if the point exists on the mesh, false if it does not. The flux at that point
 // will be stored in 'returned_flux' if the point is on the mesh.
 bool
-BrickMesh3D::fluxAtPoint(const double & x, const double & y, const double & z, double & returned_flux) const
+BrickMesh3D::fluxAtPoint(const double & x, const double & y, const double & z, unsigned int g, double & returned_flux) const
 {
   for (auto & cell : _cells)
   {
     if (cell.pointInCell(x, y, z))
     {
-      returned_flux = cell._total_scalar_flux;
+      returned_flux = cell._total_scalar_flux[g];
       return true;
     }
   }
@@ -203,21 +218,27 @@ BrickMesh3D::dumpToTextFile(const std::string & file_name)
 {
   std::ofstream dims(file_name + "_dims.txt", std::ofstream::out);
   std::ofstream blocks(file_name + "_blocks.txt", std::ofstream::out);
-  std::ofstream flux(file_name + "_flux.txt", std::ofstream::out);
-
   dims << "num_x: " << _tot_num_x << std::endl;
   dims << "num_y: " << _tot_num_y << std::endl;
   dims << "num_z: " << _tot_num_z << std::endl;
+  dims << "num_g: " << _num_groups << std::endl;
   dims.close();
 
-  flux << std::setprecision(6);
-  for (const auto & cell : _cells)
+  for (unsigned int g = 0u; g < _num_groups; ++g)
   {
-    blocks << cell._block_id << std::endl;
-    flux << cell._total_scalar_flux << std::endl;
+    std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
+
+    flux << std::setprecision(6);
+    for (const auto & cell : _cells)
+    {
+      flux << cell._total_scalar_flux[g] << std::endl;
+
+      if (g == 0u)
+        blocks << cell._block_id << std::endl;
+    }
+    flux.close();
   }
   blocks.close();
-  flux.close();
 }
 
 void

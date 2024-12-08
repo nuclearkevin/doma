@@ -47,7 +47,7 @@ CartesianCell2D::boundaryFlux(CertesianFaceSide side, unsigned int ordinate_inde
 const MaterialProps &
 CartesianCell2D::getMatProps() const
 {
-  return _parent_mesh->_block_mat_info[_block_id];
+  return _parent_mesh->_block_mat_info.at(_block_id);
 }
 
 // Check to see if a point is in the cell.

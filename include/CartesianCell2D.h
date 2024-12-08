@@ -18,7 +18,7 @@ public:
                   const double & x_center, const double & y_center,
                   unsigned int cell_id, unsigned int block_id, BrickMesh2D * parent_mesh);
 
-  // Initialize the flux storage datastructures.
+  // Initialize the flux storage data structures.
   void initFluxes(unsigned int num_groups);
 
   // Link the cell's neighbors to the cell.

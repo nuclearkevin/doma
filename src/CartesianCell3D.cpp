@@ -9,9 +9,6 @@ CartesianCell3D::CartesianCell3D(const double & lx, const double & ly, const dou
                                  unsigned int cell_id, unsigned int block_id, BrickMesh3D * parent_mesh)
   : _cell_id(cell_id),
     _block_id(block_id),
-    _sigma_t(0.0),
-    _sigma_s(0.0),
-    _fixed_src(0.0),
     _x_c(std::move(x_center)),
     _y_c(std::move(y_center)),
     _z_c(std::move(z_center)),
@@ -19,20 +16,18 @@ CartesianCell3D::CartesianCell3D(const double & lx, const double & ly, const dou
     _l_y(std::move(ly)),
     _l_z(std::move(lz)),
     _volume(_l_x * _l_y * _l_z),
-    _total_scalar_flux(0.0),
-    _current_iteration_source(0.0),
-    _current_scalar_flux(0.0),
     _parent_mesh(parent_mesh),
     _interface_angular_fluxes({0.0, 0.0, 0.0, 0.0, 0.0, 0.0}),
     _neighbors({nullptr, nullptr, nullptr, nullptr, nullptr, nullptr})
 { }
 
+// Initialize the flux storage data structures.
 void
-CartesianCell3D::applyProperties(const double & sigma_total, const double & sigma_scattering, const double & fixed_source)
+CartesianCell3D::initFluxes(unsigned int num_groups)
 {
-  _sigma_t = std::move(sigma_total);
-  _sigma_s = std::move(sigma_scattering);
-  _fixed_src = std::move(fixed_source);
+  _total_scalar_flux.resize(num_groups, 0.0);
+  _current_iteration_source.resize(num_groups, 0.0);
+  _current_scalar_flux.resize(num_groups, 0.0);
 }
 
 void
@@ -48,6 +43,12 @@ CartesianCell3D::boundaryFlux(CertesianFaceSide side, unsigned int ordinate_inde
     return 0.0;
 
   return 0.0;
+}
+
+const MaterialProps &
+CartesianCell3D::getMatProps() const
+{
+  return _parent_mesh->_block_mat_info.at(_block_id);
 }
 
 // Check to see if a point is in the cell.

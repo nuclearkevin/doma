@@ -6,7 +6,8 @@
 #include <limits>
 
 BrickMesh1D::BrickMesh1D(const std::vector<unsigned int> & nx, const std::vector<double> & dx,
-                         const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 2u> & bcs)
+                         const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 2u> & bcs,
+                         const std::unordered_map<unsigned int, MaterialProps> & props)
   : _nx(nx),
     _tot_num_x(0u),
     _num_groups(1u),
@@ -14,7 +15,8 @@ BrickMesh1D::BrickMesh1D(const std::vector<unsigned int> & nx, const std::vector
     _blocks(blocks),
     _num_cells(0u),
     _total_length(0.0),
-    _bcs(bcs)
+    _bcs(bcs),
+    _block_mat_info(props)
 {
   if (_nx.size() != _blocks.size())
   {
@@ -80,14 +82,14 @@ BrickMesh1D::BrickMesh1D(const std::vector<unsigned int> & nx, const std::vector
 }
 
 void
-BrickMesh1D::addPropsToBlock(unsigned int block, const MaterialProps & props)
+BrickMesh1D::validateProps()
 {
-  for (auto & cell : _cells)
+  for (const auto & cell : _cells)
   {
-    if (cell._block_id == block && _block_mat_info.count(block) == 0u)
+    if (_block_mat_info.count(cell._block_id) == 0)
     {
-      _block_mat_info[block] = props;
-      return;
+      std::cout << "Block " << cell._block_id << " (defined on the mesh) has no material properties!" << std::endl;
+      std::exit(1);
     }
   }
 }

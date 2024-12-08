@@ -3,6 +3,7 @@
 #include <array>
 
 #include "TransportBase.h"
+#include "InputParameters.h"
 
 class BrickMesh3D;
 
@@ -17,8 +18,8 @@ public:
                   const double & x_center, const double & y_center, const double & z_center,
                   unsigned int cell_id, unsigned int block_id, BrickMesh3D * parent_mesh);
 
-  // Apply transport material properties to this cell.
-  void applyProperties(const double & sigma_total, const double & sigma_scattering, const double & fixed_source);
+  // Initialize the flux storage data structures.
+  void initFluxes(unsigned int num_groups);
 
   // Link the cell's neighbors to the cell.
   void addNeighbor(const CartesianCell3D * cell, CertesianFaceSide side);
@@ -35,6 +36,9 @@ public:
 
   // Helper to fetch cell neighbors.
   const CartesianCell3D * neighbor(CertesianFaceSide side) const { return _neighbors[static_cast<unsigned int>(side)]; }
+
+  // Helper to fetch the material properties of this cell.
+  const MaterialProps & getMatProps() const;
 
   // Check to see if a point is in the cell.
   bool pointInCell(const double & x, const double & y, const double & z) const;
@@ -72,11 +76,6 @@ public:
   const unsigned int _cell_id;
   const unsigned int _block_id;
 
-  // Nuclear properties.
-  double _sigma_t;   // Total cross-section.
-  double _sigma_s;   // Isotropic scattering cross-section.
-  double _fixed_src; // External fixed source.
-
   // Geometric properties.
   const double _x_c;    // X component of the centroid.
   const double _y_c;    // Y component of the centroid.
@@ -88,10 +87,10 @@ public:
 
   const double _volume; // Volume of the rectangular prism.
 
-  // Flux properties.
-  double _total_scalar_flux;    // The sum of scalar fluxes from each scattering iteration.
-  double _current_iteration_source;    // The scattering source.
-  double _current_scalar_flux;  // For accumulating the current iteration's scalar flux while the angular flux is being swept.
+ // Flux properties.
+  std::vector<double> _total_scalar_flux;        // The sum of scalar fluxes from each scattering iteration.
+  std::vector<double> _current_iteration_source; // The scattering source.
+  std::vector<double> _current_scalar_flux;      // For accumulating the current iteration's scalar flux while the angular flux is being swept.
 
 protected:
   friend class BrickMesh3D;

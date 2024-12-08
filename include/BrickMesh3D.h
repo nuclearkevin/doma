@@ -1,9 +1,11 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 #include <iostream>
 
 #include "CartesianCell3D.h"
+#include "InputParameters.h"
 
 template <typename T>
 class TransportSolver3D;
@@ -14,14 +16,18 @@ class BrickMesh3D
 public:
   BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector<unsigned int> & ny, const std::vector<unsigned int> & nz,
               const std::vector<double> & dx, const std::vector<double> & dy, const std::vector<double> & dz,
-              const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 6u> & bcs);
+              const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 6u> & bcs,
+              const std::unordered_map<unsigned int, MaterialProps> & props);
 
-  // Set material properties for each cell.
-  void addPropsToBlock(unsigned int block, const double & sigma_total, const double & sigma_scattering, const double & fixed_source);
+  // Make sure each block has material properties.
+  void validateProps();
+
+  // A function to initialize the group-wise scalar fluxes in each cell.
+  void initFluxes(unsigned int num_groups);
 
   // Returns true if the point exists on the mesh, false if it does not. The flux at that point
   // will be stored in 'returned_flux' if the point is on the mesh.
-  bool fluxAtPoint(const double & x, const double & y, const double & z, double & returned_flux) const;
+  bool fluxAtPoint(const double & x, const double & y, const double & z, unsigned int g, double & returned_flux) const;
 
   // Dump the flux to a text file.
   void dumpToTextFile(const std::string & file_name);
@@ -57,6 +63,9 @@ private:
   const std::vector<double> _dy;
   const std::vector<double> _dz;
 
+  // Number of energy groups.
+  unsigned int _num_groups;
+
   // The unique material blocks.
   const std::vector<unsigned int> _blocks;
 
@@ -75,4 +84,7 @@ private:
 
   // An array of boundary angular fluxes for reflective bcs.
   std::array<std::vector<double>, 6u> _boundary_angular_fluxes;
+
+  // Material properties for this mesh.
+  const std::unordered_map<unsigned int, MaterialProps> & _block_mat_info;
 }; // class BrickMesh3D

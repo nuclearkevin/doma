@@ -22,41 +22,55 @@ template <typename T>
 class TransportSolver3D
 {
 public:
-  TransportSolver3D(BrickMesh3D & mesh, unsigned int n_l, unsigned int n_c);
+  TransportSolver3D(BrickMesh3D & mesh, unsigned int num_groups, unsigned int n_l, unsigned int n_c);
 
-  bool solveFixedSource(const double & sit, unsigned int smi);
+  bool solveFixedSource(const double & sit, unsigned int smi, double mgt, unsigned int mgi);
 
 private:
+  // Update the external multi-group sources (in-scattering, fission, and external sources)
+  // between Gauss-Seidel iterations.
+  void updateMultigroupSource(unsigned int g);
+
+  // Solve the within-group equations for the scalar fluxes.
+  bool sourceIteration(const double & sit, unsigned int smi, unsigned int g);
+
   // Initialize the solver.
   void initializeSolve();
 
   // Update the scattering source.
-  void updateScatteringSource();
+  void updateScatteringSource(unsigned int g);
 
   // Compute the scattering residual to check for source iteration convergence.
   // We use a relative error metric in the L2 integral norm.
-  double computeScatteringResidual();
+  double computeScatteringResidual(unsigned int g);
+
+  // Compute the L2 norm of the multi-group flux vectors. This is used to assess
+  // the convergence of multi-group Gauss-Seidel iteration.
+  double computeMGFluxNorm();
 
   // Invert the streaming and collision operator with a sweep.
-  void sweep();
+  void sweep(unsigned int g);
 
   // Individual sweeping functions for each octant.
   void sweepPPP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index);
+                const double & weight, unsigned int ordinate_index, unsigned int g);
   void sweepPPM(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index);
+                const double & weight, unsigned int ordinate_index, unsigned int g);
   void sweepPMP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index);
+                const double & weight, unsigned int ordinate_index, unsigned int g);
   void sweepPMM(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index);
+                const double & weight, unsigned int ordinate_index, unsigned int g);
   void sweepMPP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index);
+                const double & weight, unsigned int ordinate_index, unsigned int g);
   void sweepMPM(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index);
+                const double & weight, unsigned int ordinate_index, unsigned int g);
   void sweepMMP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index);
+                const double & weight, unsigned int ordinate_index, unsigned int g);
   void sweepMMM(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index);
+                const double & weight, unsigned int ordinate_index, unsigned int g);
+
+  // Number of neutron energy groups.
+  const unsigned int _num_groups;
 
   // The mesh to run the transport solver on.
   BrickMesh3D & _mesh;

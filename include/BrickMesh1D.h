@@ -15,10 +15,11 @@ class BrickMesh1D
 {
 public:
   BrickMesh1D(const std::vector<unsigned int> & nx, const std::vector<double> & dx,
-              const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 2u> & bcs);
+              const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 2u> & bcs,
+              const std::unordered_map<unsigned int, MaterialProps> & props);
 
-  // Set material properties for each cell.
-  void addPropsToBlock(unsigned int block, const MaterialProps & props);
+  // Make sure each block has material properties.
+  void validateProps();
 
   // A function to initialize the group-wise scalar fluxes in each cell.
   void initFluxes(unsigned int num_groups);
@@ -78,5 +79,5 @@ private:
   std::array<std::vector<double>, 2u> _boundary_angular_fluxes;
 
   // Material properties for this mesh.
-  std::unordered_map<unsigned int, MaterialProps> _block_mat_info;
+  const std::unordered_map<unsigned int, MaterialProps> & _block_mat_info;
 }; // class BrickMesh1D
