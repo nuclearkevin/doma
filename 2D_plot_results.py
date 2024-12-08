@@ -23,18 +23,39 @@ def main():
   dim_y = int(str(dim_file.readline()).replace("num_y: ", "").replace("\n", ""))
   grps = int(str(dim_file.readline()).replace("num_g: ", "").replace("\n", ""))
 
+  x_vals = np.loadtxt(dir_path + "/" + input_name + "_meshx.txt")
+  y_vals = np.loadtxt(dir_path + "/" + input_name + "_meshy.txt")
+  x_2D = x_vals.reshape((dim_x, dim_y))
+  y_2D = y_vals.reshape((dim_x, dim_y))
+
   for grp in range(grps):
     raw_flux = np.loadtxt(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.txt")
     flux_2D = raw_flux.reshape((dim_x, dim_y))
     if cli_args.log_scale == True:
-      plt.pcolormesh(flux_2D, norm=colors.LogNorm(vmin=raw_flux.min(), vmax=raw_flux.max()),
-                     cmap=cm.coolwarm, shading='auto')
-    else:
-      plt.pcolormesh(flux_2D, cmap=cm.coolwarm, shading='auto')
+      fig, ax = plt.subplots()
+      mappable = ax.pcolor(x_2D, y_2D, flux_2D,
+                          norm=colors.LogNorm(vmin=raw_flux.min(), vmax=raw_flux.max()),
+                          cmap=cm.coolwarm, shading='auto')
+      cbar = fig.colorbar(mappable)
+      cbar.ax.set_ylabel('Group ' + str(grp) + ' Scalar Flux (s$^{-1}$ cm$^{-1}$)')
+      ax.set_xlabel('x (cm)')
+      ax.set_ylabel('y (cm)')
 
-    plt.colorbar()
-    plt.savefig(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.png", format='png')
-    plt.show()
+      plt.savefig(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.png", format='png')
+      plt.show()
+      plt.close()
+    else:
+      fig, ax = plt.subplots()
+      mappable = ax.pcolor(x_2D, y_2D, flux_2D,
+                          cmap=cm.coolwarm, shading='auto')
+      cbar = fig.colorbar(mappable)
+      cbar.ax.set_ylabel('Group ' + str(grp) + ' Scalar Flux (s$^{-1}$ cm$^{-1}$)')
+      ax.set_xlabel('x (cm)')
+      ax.set_ylabel('y (cm)')
+
+      plt.savefig(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.png", format='png')
+      plt.show()
+      plt.close()
 
 if __name__ == "__main__":
     main()

@@ -218,6 +218,12 @@ BrickMesh3D::dumpToTextFile(const std::string & file_name)
 {
   std::ofstream dims(file_name + "_dims.txt", std::ofstream::out);
   std::ofstream blocks(file_name + "_blocks.txt", std::ofstream::out);
+  std::ofstream x(file_name + "_meshx.txt", std::ofstream::out);
+  x << std::setprecision(6);
+  std::ofstream y(file_name + "_meshy.txt", std::ofstream::out);
+  y << std::setprecision(6);
+  std::ofstream z(file_name + "_meshz.txt", std::ofstream::out);
+  z << std::setprecision(6);
   dims << "num_x: " << _tot_num_x << std::endl;
   dims << "num_y: " << _tot_num_y << std::endl;
   dims << "num_z: " << _tot_num_z << std::endl;
@@ -234,11 +240,19 @@ BrickMesh3D::dumpToTextFile(const std::string & file_name)
       flux << cell._total_scalar_flux[g] << std::endl;
 
       if (g == 0u)
+      {
+        x << cell._x_c << std::endl;
+        y << cell._y_c << std::endl;
+        z << cell._z_c << std::endl;
         blocks << cell._block_id << std::endl;
+      }
     }
     flux.close();
   }
   blocks.close();
+  x.close();
+  y.close();
+  z.close();
 }
 
 void

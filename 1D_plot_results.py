@@ -22,16 +22,23 @@ def main():
   dim_x = int(str(dim_file.readline()).replace("num_x: ", "").replace("\n", ""))
   grps = int(str(dim_file.readline()).replace("num_g: ", "").replace("\n", ""))
 
+  x_vals = np.loadtxt(dir_path + "/" + input_name + "_meshx.txt")
+
   for grp in range(grps):
     raw_flux = np.loadtxt(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.txt")
     if cli_args.log_scale == True:
-      plt.plot(np.linspace(0.0, float(dim_x), dim_x), raw_flux)
+      plt.plot(x_vals, raw_flux)
       plt.yscale('log')
+      plt.ylabel('Group ' + str(grp) + ' Scalar Flux (s$^{-1}$)')
+      plt.xlabel('x (cm)')
     else:
-      plt.plot(np.linspace(0.0, float(dim_x), dim_x), raw_flux)
+      plt.plot(x_vals, raw_flux)
+      plt.ylabel('Flux (s$^{-1}$)')
+      plt.xlabel('x (cm)')
 
     plt.savefig(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.png", format='png')
     plt.show()
+    plt.close()
 
 if __name__ == "__main__":
     main()
