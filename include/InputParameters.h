@@ -23,7 +23,7 @@ struct MaterialProps
   std::vector<double> _g_src;
 
   // Number of delayed neutron precusor groups.
-  unsigned int _num_n_groups;
+  unsigned int _num_d_groups;
 
   // The delayed-group to energy-group delayed fission spectra matrix flattened into a vector.
   std::vector<double> _n_g_chi_d;
@@ -47,6 +47,8 @@ struct InputParameters
   double _t1;
   // Number of timesteps to take.
   unsigned int _num_steps;
+  // Initial conditions to use.
+  TransientIC _ic;
 
   // Source iteration tolerance.
   double _src_it_tol;

@@ -1,22 +1,190 @@
 #include "TransportSolver2D.h"
 
 template <typename T>
-TransportSolver2D<T>::TransportSolver2D(BrickMesh2D & mesh, unsigned int num_groups, unsigned int n_l, unsigned int n_c)
+TransportSolver2D<T>::TransportSolver2D(BrickMesh2D & mesh, const RunMode & mode, bool verbose,
+                                        unsigned int num_groups, unsigned int n_l, unsigned int n_c)
   : _num_groups(num_groups),
+    _mode(mode),
     _mesh(mesh),
     _angular_quad(2u * n_c, 2u * n_l, 2u),
-    _eq_system()
+    _eq_system(),
+    _verbose(verbose)
 {
-  _mesh.initFluxes(_num_groups);
+  _mesh._num_groups = _num_groups;
 }
 
 template <typename T>
 bool
-TransportSolver2D<T>::solveFixedSource(const double & sit, unsigned int smi, double mgt, unsigned int mgi)
+TransportSolver2D<T>::solveTransient(const double & t0, const double & dt, unsigned int t_steps, const TransientIC & ic,
+                                     const double & sit, unsigned int smi, double mgt, unsigned int mgi,
+                                     const std::string & output_file_base)
+{
+  _dt = dt;
+
+  // Compute initial conditions.
+  bool res = true;
+  std::cout << "Setting up initial conditions..." << std::endl;
+  switch (ic)
+  {
+    case TransientIC::Zero:
+      initZeroIC();
+      break;
+    case TransientIC::SteadyState:
+      res = initSteadyIC(sit, smi, mgt, mgi);
+      break;
+    default:
+      break;
+  }
+
+  // Failed to initialize with a steady-state calculation, abort.
+  if (!res)
+    return res;
+
+  // Dump IC to file.
+  _mesh.dumpToTextFile(output_file_base);
+
+  double t = 0.0;
+  for (unsigned int step = 0u; step < t_steps; ++step)
+  {
+    std::cout << "Solving timestep " << step << "..." << std::endl;
+    res = solveFixedSource(sit, smi, mgt, mgi, t);
+
+    // Failed to solve the steady-state problem at the current timestep, abort.
+    if (!res)
+      return res;
+
+    // Step the delayed neutron precursors.
+    stepDNPs();
+
+    _mesh.dumpToTextFile(output_file_base + "_t" + std::to_string(step), true);
+    _mesh.dumpDNPsToTextFile(output_file_base + "_t" + std::to_string(step));
+
+    // Copy the curernt timestep's fluxes into the previous step's and zero the current iteration's fluxes.
+    if (step != t_steps - 1)
+      updateStepFluxes();
+
+    t += dt;
+  }
+
+  return true;
+}
+
+template <typename T>
+void
+TransportSolver2D<T>::initZeroIC()
+{
+  for (auto & cell : _mesh._cells)
+  {
+    const auto & p = cell.getMatProps();
+
+    cell._total_scalar_flux.resize(_num_groups, 0.0);
+    cell._last_t_scalar_flux.resize(_num_groups, 0.0);
+    cell._current_t_dnps.resize(p._num_d_groups, 0.0);
+    cell._last_t_dnps.resize(p._num_d_groups, 0.0);
+
+    cell._current_iteration_source = 0.0;
+    cell._current_scalar_flux = 0.0;
+    cell._interface_angular_fluxes.fill(0.0);
+  }
+}
+
+template <typename T>
+bool
+TransportSolver2D<T>::initSteadyIC(const double & sit, unsigned int smi, double mgt, unsigned int mgi)
 {
   initializeSolve();
 
-  std::cout << "Solving..." << std::endl;
+  // Run a steady-state solve to compute initial conditions.
+  auto res = solveFixedSource(sit, smi, mgt, mgi);
+
+  // Failed to solve the steady-state problem at the current timestep, abort.
+  if (!res)
+    return res;
+
+  for (auto & cell : _mesh._cells)
+  {
+    const auto & p = cell.getMatProps();
+
+    // Init DNPs based on the steady-state equation.
+    if (p._num_d_groups > 0)
+    {
+      cell._current_t_dnps.resize(p._num_d_groups, 0.0);
+      cell._last_t_dnps.resize(p._num_d_groups, 0.0);
+
+      for (unsigned int d = 0; d < p._num_d_groups; ++d)
+      {
+        for (unsigned int g = 0; g < _num_groups; ++g)
+          cell._last_t_dnps[d] += p._g_prod[g] * cell._total_scalar_flux[g] * p._g_n_beta[g * p._num_d_groups + d];
+
+        cell._last_t_dnps[d] /= p._n_lambda[d];
+      }
+    }
+
+    // Copy the steady state solution into the previous timestep vector.
+    std::copy(cell._total_scalar_flux.begin(),
+              cell._total_scalar_flux.end(),
+              std::back_inserter(cell._last_t_scalar_flux));
+
+    for (unsigned int g = 0; g < _num_groups; ++g)
+      cell._total_scalar_flux[g] = 0.0;
+
+    cell._current_iteration_source = 0.0;
+    cell._current_scalar_flux = 0.0;
+    cell._interface_angular_fluxes.fill(0.0);
+  }
+
+  return res;
+}
+
+template <typename T>
+void
+TransportSolver2D<T>::updateStepFluxes()
+{
+  for (auto & cell : _mesh._cells)
+  {
+    for (unsigned int g = 0; g < _num_groups; ++g)
+    {
+      cell._last_t_scalar_flux[g] = cell._total_scalar_flux[g];
+      cell._total_scalar_flux[g] = 0.0;
+    }
+    cell._current_iteration_source = 0.0;
+    cell._current_scalar_flux = 0.0;
+    cell._interface_angular_fluxes.fill(0.0);
+  }
+}
+
+template <typename T>
+void
+TransportSolver2D<T>::stepDNPs()
+{
+  for (auto & cell : _mesh._cells)
+  {
+    const auto & p = cell.getMatProps();
+
+    for (unsigned int d = 0u; d < p._num_d_groups; ++d)
+    {
+      // Accumulate the DNP fission source.
+      double src = 0.0;
+      for (unsigned int g = 0u; g < _num_groups; ++g)
+        src += p._g_prod[g] * cell._total_scalar_flux[g] * p._g_n_beta[g * p._num_d_groups + d];
+
+      // Compute the current step DNP concentrations (assuming a constant fission source between steps).
+      cell._current_t_dnps[d] = (_dt * src + cell._last_t_dnps[d]) / (1 + _dt * p._n_lambda[d]);
+      cell._last_t_dnps[d] = cell._current_t_dnps[d];
+    }
+  }
+}
+
+template <typename T>
+bool
+TransportSolver2D<T>::solveFixedSource(const double & sit, unsigned int smi, double mgt, unsigned int mgi, double t)
+{
+  if (_mode != RunMode::Transient)
+  {
+    std::cout << "Solving..." << std::endl;
+    initializeSolve();
+  }
+
   unsigned int mg_iteration = 0u;
   double current_residual = 0.0;
   double previous_norm = 1.0;
@@ -33,7 +201,7 @@ TransportSolver2D<T>::solveFixedSource(const double & sit, unsigned int smi, dou
 
     for (unsigned int g = 0u; g < _num_groups; ++g)
     {
-      updateMultigroupSource(g);
+      updateMultigroupSource(g, t);
       auto res = sourceIteration(sit, smi, g);
       if (!res)
         return res;
@@ -70,29 +238,48 @@ TransportSolver2D<T>::computeMGFluxNorm()
   double norm = 0.0;
   for (auto & cell : _mesh._cells)
     for (unsigned int g = 0u; g < _num_groups; ++g)
-      norm += std::pow(cell._total_scalar_flux[g] * cell._area, 2.0);
+      norm += std::pow(cell._total_scalar_flux[g], 2.0) * cell._area;
 
   return std::sqrt(norm);
 }
 
 template <typename T>
 void
-TransportSolver2D<T>::updateMultigroupSource(unsigned int g)
+TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
 {
   for (auto & cell : _mesh._cells)
   {
     const auto & p = cell.getMatProps();
 
-    cell._current_iteration_source[g] = p._g_src.size() != 0u ? 0.5 * p._g_src[g] / M_PI : 0.0;
-    cell._current_scalar_flux[g] = 0.0;
+    cell._current_iteration_source = p._g_src.size() != 0u && t < 5.0 ? 0.5 * p._g_src[g] / M_PI : 0.0;
+    cell._current_scalar_flux = 0.0;
 
     for (unsigned int g_prime = 0u; g_prime < _num_groups; ++g_prime)
     {
+      // Accumulate the in-scattering contribution.
       if (g_prime != g)
-        cell._current_iteration_source[g] += 0.5 * p._g_g_scatter_mat[g * _num_groups + g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+        cell._current_iteration_source += 0.5 * p._g_g_scatter_mat[g * _num_groups + g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
 
-      if (p._g_chi_p.size() > 0u)
-        cell._current_iteration_source[g] += 0.5 * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+      // Accumulate the prompt fission contribution.
+      if (p._g_chi_p.size() > 0u && p._num_d_groups == 0u)
+        cell._current_iteration_source += 0.5 * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+      else if (p._g_chi_p.size() > 0u && p._num_d_groups > 0u)
+      {
+        double g_beta = 0.0;
+        for (unsigned int d = 0u; d < p._num_d_groups; ++d)
+          g_beta += p._g_n_beta[g_prime * p._num_d_groups + d];
+
+        cell._current_iteration_source += 0.5 * (1.0 - g_beta) * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+      }
+
+      // Accumulate the contribution from delayed neutrons.
+      if (p._num_d_groups > 0u)
+        for (unsigned int d = 0u; d < p._num_d_groups; ++d)
+          cell._current_iteration_source += 0.5 * p._n_g_chi_d[g * p._num_d_groups + d] * cell._current_t_dnps[d] * p._n_lambda[d] / M_PI;
+
+      // Accumulate the transoent source.
+      if (_mode == RunMode::Transient)
+        cell._current_iteration_source += 0.5 * cell._last_t_scalar_flux[g] * p._g_inv_v[g] / _dt / M_PI;
     }
     cell._total_scalar_flux[g] = 0.0;
   }
@@ -106,11 +293,14 @@ TransportSolver2D<T>::sourceIteration(const double & sit, unsigned int smi, unsi
   double current_residual = 0.0;
   do
   {
-    std::cout << "Performing SI " << source_iteration << " for G" << g;
-    if (source_iteration != 0u)
-      std::cout <<  ", residual = " << current_residual << std::endl;
-    else
-      std::cout << std::endl;
+    if (_verbose)
+    {
+      std::cout << "Performing SI " << source_iteration << " for G" << g;
+      if (source_iteration != 0u)
+        std::cout <<  ", residual = " << current_residual << std::endl;
+      else
+        std::cout << std::endl;
+    }
 
     sweep(g);
     current_residual = computeScatteringResidual(g);
@@ -150,12 +340,10 @@ TransportSolver2D<T>::initializeSolve()
   for (auto & cell : _mesh._cells)
   {
     const auto & p = cell.getMatProps();
-    for (unsigned int g = 0; g < _num_groups; ++g)
-    {
-      cell._total_scalar_flux[g] = 0.0;
-      cell._current_iteration_source[g] = 0.0;
-      cell._current_scalar_flux[g] = 0.0;
-    }
+    cell._total_scalar_flux.resize(_num_groups, 0.0);
+
+    cell._current_iteration_source = 0.0;
+    cell._current_scalar_flux = 0.0;
     cell._interface_angular_fluxes.fill(0.0);
   }
 }
@@ -168,9 +356,9 @@ TransportSolver2D<T>::updateScatteringSource(unsigned int g)
   {
     const auto & p = cell.getMatProps();
 
-    cell._total_scalar_flux[g] += cell._current_scalar_flux[g];
-    cell._current_iteration_source[g] = 0.5 * p._g_g_scatter_mat[g * _num_groups + g] * cell._current_scalar_flux[g] / M_PI;
-    cell._current_scalar_flux[g] = 0.0;
+    cell._total_scalar_flux[g] += cell._current_scalar_flux;
+    cell._current_iteration_source = 0.5 * p._g_g_scatter_mat[g * _num_groups + g] * cell._current_scalar_flux / M_PI;
+    cell._current_scalar_flux = 0.0;
 
     cell._interface_angular_fluxes.fill(0.0);
   }
@@ -184,8 +372,8 @@ TransportSolver2D<T>::computeScatteringResidual(unsigned int g)
   double total_L2 = 0.0;
   for (auto & cell : _mesh._cells)
   {
-    diff_L2 += std::pow(cell._current_scalar_flux[g], 2.0) * cell._area;
-    total_L2 += std::pow(cell._total_scalar_flux[g] + cell._current_scalar_flux[g], 2.0) * cell._area;
+    diff_L2 += std::pow(cell._current_scalar_flux, 2.0) * cell._area;
+    total_L2 += std::pow(cell._total_scalar_flux[g] + cell._current_scalar_flux, 2.0) * cell._area;
   }
 
   return total_L2 > 1e-8 ? std::sqrt(diff_L2) / std::sqrt(total_L2) : 0.0;
@@ -292,7 +480,8 @@ TransportSolver2D<T>::sweepPPP(const double & abs_mu, const double & abs_eta, co
       auto & cell = _mesh._cells[column * _mesh._tot_num_x + row];
       _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                        CertesianFaceSide::Left, CertesianFaceSide::Right,  // x
-                       CertesianFaceSide::Back, CertesianFaceSide::Front); // z
+                       CertesianFaceSide::Back, CertesianFaceSide::Front,
+                       _mode, _dt); // z
     }
   }
 }
@@ -313,7 +502,8 @@ TransportSolver2D<T>::sweepPMP(const double & abs_mu, const double & abs_eta, co
       auto & cell =_mesh._cells[column * _mesh._tot_num_x + row];
       _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                        CertesianFaceSide::Left, CertesianFaceSide::Right,  // x
-                       CertesianFaceSide::Front, CertesianFaceSide::Back); // z
+                       CertesianFaceSide::Front, CertesianFaceSide::Back,
+                       _mode, _dt); // z
     }
   }
 }
@@ -334,7 +524,8 @@ TransportSolver2D<T>::sweepMPP(const double & abs_mu, const double & abs_eta, co
       auto & cell =_mesh._cells[column * _mesh._tot_num_x + row];
       _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                        CertesianFaceSide::Right, CertesianFaceSide::Left,  // x
-                       CertesianFaceSide::Back, CertesianFaceSide::Front); // z
+                       CertesianFaceSide::Back, CertesianFaceSide::Front,
+                       _mode, _dt); // z
     }
   }
 }
@@ -357,7 +548,8 @@ TransportSolver2D<T>::sweepMMP(const double & abs_mu, const double & abs_eta, co
       auto & cell =_mesh._cells[column * _mesh._tot_num_x + row];
       _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                        CertesianFaceSide::Right, CertesianFaceSide::Left,  // x
-                       CertesianFaceSide::Front, CertesianFaceSide::Back); // z
+                       CertesianFaceSide::Front, CertesianFaceSide::Back,
+                       _mode, _dt); // z
     }
   }
 }

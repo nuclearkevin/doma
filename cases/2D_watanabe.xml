@@ -18,17 +18,17 @@
                   2, 2, 2, 2, 2"/>
   </mesh>
   <materials>
-    <mat block="0">
+    <mat block="0" delayed_groups="0">
       <reaction type="total"   mgxs="1e-1"/>
       <reaction type="scatter" mgxs="5e-2"/>
       <reaction type="source"  mgxs="1.0"/>
     </mat>
-    <mat block="1">
+    <mat block="1" delayed_groups="0">
       <reaction type="total"   mgxs="1e-4"/>
       <reaction type="scatter" mgxs="5e-5"/>
       <reaction type="source"  mgxs="0.0"/>
     </mat>
-    <mat block="2">
+    <mat block="2" delayed_groups="0">
       <reaction type="total"   mgxs="1e-1"/>
       <reaction type="scatter" mgxs="5e-2"/>
       <reaction type="source"  mgxs="0.0"/>

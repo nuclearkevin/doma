@@ -70,7 +70,7 @@ TransportSolver1D<T>::computeMGFluxNorm()
   double norm = 0.0;
   for (auto & cell : _mesh._cells)
     for (unsigned int g = 0u; g < _num_groups; ++g)
-      norm += std::pow(cell._total_scalar_flux[g] * cell._l_x, 2.0);
+      norm += std::pow(cell._total_scalar_flux[g], 2.0) * cell._l_x;
 
   return std::sqrt(norm);
 }

@@ -22,15 +22,32 @@ template <typename T>
 class TransportSolver2D
 {
 public:
-  TransportSolver2D(BrickMesh2D & mesh, unsigned int num_groups, unsigned int n_l, unsigned int n_c);
+  TransportSolver2D(BrickMesh2D & mesh, const RunMode & mode, bool verbose, unsigned int num_groups, unsigned int n_l, unsigned int n_c);
 
   // Solve the subcritical multiplication fixed source problem.
-  bool solveFixedSource(const double & sit, unsigned int smi, double mgt, unsigned int mgi);
+  bool solveFixedSource(const double & sit, unsigned int smi, double mgt, unsigned int mgi, double t = 0.0);
+
+  // Solve the subcritical transient fixed source problem with delayed neutron precursors.
+  bool solveTransient(const double & t0, const double & dt, unsigned int t_steps, const TransientIC & ic,
+                      const double & sit, unsigned int smi, double mgt, unsigned int mgi,
+                      const std::string & output_file_base = "");
 
 private:
+  // Initialize the zero initial condition.
+  void initZeroIC();
+
+  // Initialize the steady-state initial condition.
+  bool initSteadyIC(const double & sit, unsigned int smi, double mgt, unsigned int mgi);
+
+  // Update the fluxes between timesteps.
+  void updateStepFluxes();
+
+  // Update the delayed neutron precursors.
+  void stepDNPs();
+
   // Update the external multi-group sources (in-scattering, fission, and external sources)
   // between Gauss-Seidel iterations.
-  void updateMultigroupSource(unsigned int g);
+  void updateMultigroupSource(unsigned int g, double t = 0.0);
 
   // Solve the within-group equations for the scalar fluxes.
   bool sourceIteration(const double & sit, unsigned int smi, unsigned int g);
@@ -65,6 +82,12 @@ private:
   // Number of neutron energy groups.
   const unsigned int _num_groups;
 
+  // The execution mode for the solver.
+  const RunMode _mode;
+
+  // The dt to use (if running a transient solve).
+  double _dt;
+
   // The mesh to run the transport solver on.
   BrickMesh2D & _mesh;
 
@@ -73,6 +96,9 @@ private:
 
   // The templated equation system responsible for solving for cell-centered and interface fluxes.
   const T _eq_system;
+
+  // Whether or not verbose output should be used.
+  const bool _verbose;
 }; // class TransportSolver
 
 extern template class TransportSolver2D<TWDiamondDifference2D>;

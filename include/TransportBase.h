@@ -47,3 +47,9 @@ enum class EquationType
   DD = 0u,
   TW_DD = 1u
 };
+
+enum class TransientIC
+{
+  Zero = 0u,
+  SteadyState = 1u
+};

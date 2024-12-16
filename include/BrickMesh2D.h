@@ -22,15 +22,15 @@ public:
   // Make sure each block has material properties.
   void validateProps();
 
-  // A function to initialize the group-wise scalar fluxes in each cell.
-  void initFluxes(unsigned int num_groups);
-
   // Returns true if the point exists on the mesh, false if it does not. The flux at that point
   // will be stored in 'returned_flux' if the point is on the mesh.
   bool fluxAtPoint(const double & x, const double & y, unsigned int g, double & returned_flux) const;
 
   // Dump the flux to a text file.
-  void dumpToTextFile(const std::string & file_name);
+  void dumpToTextFile(const std::string & file_name, bool only_flux = false);
+
+  // Dump the DNPs to a text file.
+  void dumpDNPsToTextFile(const std::string & file_name);
 
   // A debug helper to print all of the mesh cells.
   void printAllBlocks();

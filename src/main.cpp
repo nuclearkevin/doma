@@ -17,6 +17,10 @@ main(int argc, char** argv)
   args.add_argument("-i", "--input_file")
       .required()
       .help("The path of a DOMA input file.");
+  args.add_argument("--verbose")
+      .help("Whether to use verbose output or not.")
+      .default_value(false)
+      .implicit_value(true);
 
   try
   {
@@ -69,17 +73,38 @@ main(int argc, char** argv)
                             params._block_mat_info);
     mesh.validateProps();
 
-    if (params._eq_type == EquationType::DD)
+    if (params._mode == RunMode::FixedSrc)
     {
-      DDTransportSolver2D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
-      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+      if (params._eq_type == EquationType::DD)
+      {
+        DDTransportSolver2D solver(mesh, params._mode, args.get<bool>("--verbose"), params._num_e_groups, params._num_polar, params._num_azimuthal);
+        if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
+          mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+      }
+      else if (params._eq_type == EquationType::TW_DD)
+      {
+        TWDDTransportSolver2D solver(mesh, params._mode, args.get<bool>("--verbose"), params._num_e_groups, params._num_polar, params._num_azimuthal);
+        if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
+          mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+      }
     }
-    else if (params._eq_type == EquationType::TW_DD)
+    else if (params._mode == RunMode::Transient)
     {
-      TWDDTransportSolver2D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
-      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+      auto dt = (params._t1 - params._t0) / static_cast<double>(params._num_steps);
+      if (params._eq_type == EquationType::DD)
+      {
+        DDTransportSolver2D solver(mesh, params._mode, args.get<bool>("--verbose"), params._num_e_groups, params._num_polar, params._num_azimuthal);
+        solver.solveTransient(params._t0, dt, params._num_steps, params._ic,
+                              params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it,
+                              (inp_path.parent_path().string() / inp_path.stem()).string());
+      }
+      else if (params._eq_type == EquationType::TW_DD)
+      {
+        TWDDTransportSolver2D solver(mesh, params._mode, args.get<bool>("--verbose"), params._num_e_groups, params._num_polar, params._num_azimuthal);
+        solver.solveTransient(params._t0, dt, params._num_steps, params._ic,
+                              params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it,
+                              (inp_path.parent_path().string() / inp_path.stem()).string());
+      }
     }
   }
   else if (params._num_dims == 3)

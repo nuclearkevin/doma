@@ -12,21 +12,12 @@ CartesianCell2D::CartesianCell2D(const double & lx, const double & ly,
     _l_x(std::move(lx)),
     _l_y(std::move(ly)),
     _area(_l_x * _l_y),
-    _total_scalar_flux(0.0),
     _current_iteration_source(0.0),
     _current_scalar_flux(0.0),
     _parent_mesh(parent_mesh),
     _interface_angular_fluxes({0.0, 0.0, 0.0, 0.0}),
     _neighbors({nullptr, nullptr, nullptr, nullptr})
 { }
-
-void
-CartesianCell2D::initFluxes(unsigned int num_groups)
-{
-  _total_scalar_flux.resize(num_groups, 0.0);
-  _current_iteration_source.resize(num_groups, 0.0);
-  _current_scalar_flux.resize(num_groups, 0.0);
-}
 
 void
 CartesianCell2D::addNeighbor(const CartesianCell2D * cell, CertesianFaceSide side)

@@ -51,7 +51,7 @@ parseVecFromString(const std::string & str, std::vector<unsigned int> & res)
 double
 parseDoubleParam(const pugi::xml_node & node, const std::string & p_name)
 {
-  if (node.attribute(p_name.c_str()).as_double(-1.0) > 0.0)
+  if (node.attribute(p_name.c_str()).as_double(-1.0) >= 0.0)
     return node.attribute(p_name.c_str()).as_double(-1.0);
   else
   {
@@ -141,7 +141,7 @@ parseInputParameters(const std::string & file_path)
     params._gs_tol = parseDoubleParam(s, "mg_tol");
     params._num_mg_it = parseUintParam(s, "mg_max_it");
 
-    if (params._mode == RunMode::Transient || params._mode == RunMode::Eigen)
+    if (params._mode == RunMode::Eigen)
     {
       params._pow_it_tol = parseDoubleParam(s, "pi_tol");
       params._num_pi_it = parseUintParam(s, "pi_max_it");
@@ -152,6 +152,16 @@ parseInputParameters(const std::string & file_path)
       params._t0 = parseDoubleParam(s, "t0");
       params._t1 = parseDoubleParam(s, "t1");
       params._num_steps = parseUintParam(s, "t_steps");
+
+      if (std::string(s.attribute("ics").as_string()) == "zero")
+        params._ic = TransientIC::Zero;
+      else if(std::string(s.attribute("ics").as_string()) == "steady")
+        params._ic = TransientIC::SteadyState;
+      else
+      {
+        std::cerr << "Unknown initial condition " << s.attribute("ics").as_string() << std::endl;
+        std::exit(1);
+      }
     }
   }
   // End parsing solver parameters.
@@ -267,6 +277,11 @@ parseInputParameters(const std::string & file_path)
     for (auto & mat_node : mat_block)
     {
       auto & mat_props = (*params._block_mat_info.emplace(parseUintParam(mat_node, "block"), MaterialProps()).first).second;
+      if (params._mode == RunMode::Transient)
+        mat_props._num_d_groups = parseUintParam(mat_node, "delayed_groups");
+      else
+        mat_props._num_d_groups = 0u;
+
       for (auto & rxn : mat_node)
       {
         if (std::string(rxn.attribute("type").as_string()) == "total")
@@ -298,6 +313,12 @@ parseInputParameters(const std::string & file_path)
            parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_prod);
         else if (std::string(rxn.attribute("type").as_string()) == "inv_vel")
           parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_inv_v);
+        else if (std::string(rxn.attribute("type").as_string()) == "chi_d")
+          parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._n_g_chi_d);
+        else if (std::string(rxn.attribute("type").as_string()) == "beta")
+          parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._g_n_beta);
+        else if (std::string(rxn.attribute("type").as_string()) == "lambda_d")
+          parseVecFromString(parseStringParam(rxn, "mgxs"), mat_props._n_lambda);
         else
         {
           std::cerr << "Unsupported reaction type " << rxn.attribute("type").as_string() << std::endl;
@@ -345,6 +366,27 @@ parseInputParameters(const std::string & file_path)
         std::cerr << "Not enough inverse velocities have been provided! The simulation requires "
                   << params._num_e_groups << " inverse velocities when running in transient mode; "
                   << "'inv_vel' only provides " << mat_props._g_inv_v.size() << "." << std::endl;
+        std::exit(1);
+      }
+      if (mat_props._n_g_chi_d.size() != params._num_e_groups * mat_props._num_d_groups && params._mode == RunMode::Transient)
+      {
+        std::cerr << "Not enough delayed fission spectra values have been provided! The simulation requires "
+                  << params._num_e_groups * mat_props._num_d_groups << " delayed fission spectra values when "
+                  "running in transient mode; 'chi_d' only provides " << mat_props._n_g_chi_d.size() << "." << std::endl;
+        std::exit(1);
+      }
+      if (mat_props._g_n_beta.size() != params._num_e_groups * mat_props._num_d_groups && params._mode == RunMode::Transient)
+      {
+        std::cerr << "Not enough delayed fractions have been provided! The simulation requires "
+                  << params._num_e_groups * mat_props._num_d_groups << " delayed fractions when "
+                  "running in transient mode; 'beta' only provides " << mat_props._g_n_beta.size() << "." << std::endl;
+        std::exit(1);
+      }
+      if (mat_props._n_lambda.size() != mat_props._num_d_groups && params._mode == RunMode::Transient)
+      {
+        std::cerr << "Not enough delayed decay constants have been provided! The simulation requires "
+                  << mat_props._num_d_groups << " delayed decay constants when "
+                  "running in transient mode; 'lambda_d' only provides " << mat_props._n_lambda.size() << "." << std::endl;
         std::exit(1);
       }
     }
