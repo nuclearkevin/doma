@@ -276,7 +276,16 @@ parseInputParameters(const std::string & file_path)
 
     for (auto & mat_node : mat_block)
     {
-      auto & mat_props = (*params._block_mat_info.emplace(parseUintParam(mat_node, "block"), MaterialProps()).first).second;
+      auto blk = parseUintParam(mat_node, "block");
+      if (params._block_mat_info.count(blk) != 0u)
+      {
+        std::cerr << "A block can only contain one set of material properties, "
+                  << "you have provided multiple material properties for block "
+                  << blk << "!" << std::endl;
+        std::exit(1);
+      }
+
+      auto & mat_props = (*params._block_mat_info.emplace(blk, MaterialProps()).first).second;
       if (params._mode == RunMode::Transient)
         mat_props._num_d_groups = parseUintParam(mat_node, "delayed_groups");
       else
@@ -392,6 +401,110 @@ parseInputParameters(const std::string & file_path)
     }
   }
   // End parsing the material properties.
+
+  // Parsing transients.
+  {
+    auto tr_block = p.child("transients");
+    if (tr_block && params._mode == RunMode::Transient)
+    {
+      for (auto & tr_node : tr_block)
+      {
+        // This is a source step insertion / step removal transient.
+        if (std::string(tr_node.name()) == "source_step")
+        {
+          auto blk = parseUintParam(tr_node, "block");
+          if (params._block_step_src.count(blk) != 0u)
+          {
+            std::cerr << "A block can only contain one step source, "
+                      << "you have provided multiple step sources for block "
+                      << blk << "!" << std::endl;
+            std::exit(1);
+          }
+
+          auto & step = (*params._block_step_src.emplace(blk, SourceStep()).first).second;
+          if (std::string(tr_node.attribute("insert_at").as_string()) != "" &&
+              std::string(tr_node.attribute("remove_at").as_string()) != "")
+          {
+            step._type = StepType::Both;
+            step._insert_time = parseDoubleParam(tr_node, "insert_at");
+            step._remove_time = parseDoubleParam(tr_node, "remove_at");
+            if (step._remove_time < step._insert_time)
+            {
+              std::cerr << "The step source for block " << blk
+                        << " is being removed at " << step._remove_time
+                        << ", which is less than the insertion time of "
+                        << step._insert_time << "!" << std::endl;
+              std::exit(1);
+            }
+
+            if (step._insert_time < params._t0 || step._remove_time < params._t0)
+            {
+              std::cerr << "The step source for block " << blk
+                        << " is being inserted / removed before "
+                        << "the simulation starts!" << std::endl;
+            }
+            if (step._insert_time > params._t1 || step._remove_time > params._t1)
+            {
+              std::cerr << "The step source for block " << blk
+                        << " is being inserted / removed after "
+                        << "the simulation ends!" << std::endl;
+            }
+          }
+          else if (std::string(tr_node.attribute("insert_at").as_string()) != "")
+          {
+            step._type = StepType::Insert;
+            step._insert_time = parseDoubleParam(tr_node, "insert_at");
+
+            if (step._insert_time < params._t0)
+            {
+              std::cerr << "The step source for block " << blk
+                        << " is being inserted before "
+                        << "the simulation starts!" << std::endl;
+            }
+            if (step._insert_time > params._t1)
+            {
+              std::cerr << "The step source for block " << blk
+                        << " is being inserted after "
+                        << "the simulation ends!" << std::endl;
+            }
+          }
+          else if (std::string(tr_node.attribute("remove_at").as_string()) != "")
+          {
+            step._type = StepType::Remove;
+            step._remove_time = parseDoubleParam(tr_node, "remove_at");
+
+            if (step._remove_time < params._t0)
+            {
+              std::cerr << "The step source for block " << blk
+                        << " is being removed before "
+                        << "the simulation starts!" << std::endl;
+            }
+            if (step._remove_time > params._t1)
+            {
+              std::cerr << "The step source for block " << blk
+                        << " is being removed after "
+                        << "the simulation ends!" << std::endl;
+            }
+          }
+          else
+          {
+            std::cerr << "Invalid step source for block " << blk << "!" << std::endl;
+            std::exit(1);
+          }
+
+          parseVecFromString(parseStringParam(tr_node, "mgxs"), step._g_src);
+          if (step._g_src.size() != params._num_e_groups)
+          {
+            std::cerr << "Not enough external sources have been provided for the step source in block " << blk
+                      << "! The simulation requires " << params._num_e_groups << " sources; "
+                      << step._g_src.size() << " have been provided." << std::endl;
+            std::exit(1);
+          }
+        }
+      }
+    }
+  }
+  // End parsing transients.
 
   return params;
 }

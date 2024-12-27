@@ -6,6 +6,20 @@
 
 #include "TransportBase.h"
 
+// A container to collect properties of step insertion / removal transients for external sources.
+struct SourceStep
+{
+  // The type of step transient.
+  StepType _type;
+  // The time at which the source is inserted.
+  double _insert_time;
+  // The time at which the source is removed.
+  double _remove_time;
+
+  // Vector of energy-group-wise isotropic source intensities.
+  std::vector<double> _g_src;
+};
+
 // A container to collect material properties.
 struct MaterialProps
 {
@@ -78,20 +92,27 @@ struct InputParameters
   // The uniform mesh refinement.
   unsigned int _refinement;
 
+  // The number of intervals in x, y, and z.
   std::vector<unsigned int> _x_intervals;
   std::vector<unsigned int> _y_intervals;
   std::vector<unsigned int> _z_intervals;
 
+  // The length of each x, y, and z interval.
   std::vector<double> _dx;
   std::vector<double> _dy;
   std::vector<double> _dz;
 
+  // The blocks for each unique interval.
   std::vector<unsigned int> _blocks;
 
+  // Boundary conditions, currently unused as the only supported BC is vacuum.
   std::unordered_map<CertesianFaceSide, BoundaryCondition> _bcs;
 
   // Materials.
   std::unordered_map<unsigned int, MaterialProps> _block_mat_info;
+
+  // Source step insertion / removal transients.
+  std::unordered_map<unsigned int, SourceStep> _block_step_src;
 };
 
 InputParameters parseInputParameters(const std::string & file_path);

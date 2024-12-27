@@ -52,7 +52,9 @@
                                      0.0, 0.0, 0.0,
                                      0.0, 0.0, 0.0"/>
       <reaction type="inv_vel" mgxs="9.136075145323648e-10, 6.179303662297312e-08, 2.6149811828762654e-06"/>
-      <reaction type="source" mgxs="1e7, 0.0, 0.0"/>
     </mat>
   </materials>
+  <transients>
+    <source_step block="2" insert_at="0.0" remove_at="5.0" mgxs="1e7, 0.0, 0.0"/>
+  </transients>
 </doma_inp>

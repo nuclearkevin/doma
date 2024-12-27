@@ -258,8 +258,7 @@ TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
   {
     const auto & p = cell.getMatProps();
 
-    // TODO: better transient source API.
-    cell._current_iteration_source = p._g_src.size() != 0u && t < 5.0 ? 0.5 * p._g_src[g] / M_PI : 0.0;
+    cell._current_iteration_source = p._g_src.size() != 0u ? 0.5 * p._g_src[g] / M_PI : 0.0;
     cell._current_scalar_flux = 0.0;
 
     for (unsigned int g_prime = 0u; g_prime < _num_groups; ++g_prime)

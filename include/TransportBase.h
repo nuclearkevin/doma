@@ -53,3 +53,10 @@ enum class TransientIC
   Zero = 0u,
   SteadyState = 1u
 };
+
+enum class StepType
+{
+  Insert = 0u,
+  Remove = 1u,
+  Both = 2u
+};
