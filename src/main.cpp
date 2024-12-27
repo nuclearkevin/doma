@@ -64,13 +64,7 @@ main(int argc, char** argv)
     std::array<BoundaryCondition, 4u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
 
-    auto mesh = BrickMesh2D(params._x_intervals,
-                            params._y_intervals,
-                            params._dx,
-                            params._dy,
-                            params._blocks,
-                            boundary_conditions,
-                            params._block_mat_info);
+    auto mesh = BrickMesh2D(params, boundary_conditions);
     mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)

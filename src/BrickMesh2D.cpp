@@ -5,22 +5,20 @@
 #include <iomanip>
 #include <limits>
 
-BrickMesh2D::BrickMesh2D(const std::vector<unsigned int> & nx, const std::vector<unsigned int> & ny,
-                         const std::vector<double> & dx, const std::vector<double> & dy,
-                         const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 4u> & bcs,
-                         const std::unordered_map<unsigned int, MaterialProps> & props)
-  : _nx(nx),
-    _ny(ny),
+BrickMesh2D::BrickMesh2D(const InputParameters & params, const std::array<BoundaryCondition, 4u> & bcs)
+  : _nx(params._x_intervals),
+    _ny(params._y_intervals),
     _tot_num_x(0u),
     _tot_num_y(0u),
-    _num_groups(1u),
-    _dx(dx),
-    _dy(dy),
-    _blocks(blocks),
+    _num_groups(params._num_e_groups),
+    _dx(params._dx),
+    _dy(params._dy),
+    _blocks(params._blocks),
     _num_cells(0u),
     _total_area(0.0),
     _bcs(bcs),
-    _block_mat_info(props)
+    _block_mat_info(params._block_mat_info),
+    _block_step_src(params._block_step_src)
 {
   if (_nx.size() * _ny.size() != _blocks.size())
   {

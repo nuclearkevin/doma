@@ -37,6 +37,12 @@ public:
   // Helper to fetch the material properties of this cell.
   const MaterialProps & getMatProps() const;
 
+  // Check to see if this cell has a step source.
+  bool hasStepSource() const;
+
+  // Helper to fetch the source step transients of this cell.
+  const SourceStep & getSourceStep() const;
+
   // Check to see if a point is in the cell.
   bool pointInCell(const double & x, const double & y) const;
 

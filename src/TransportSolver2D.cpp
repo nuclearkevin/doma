@@ -258,8 +258,27 @@ TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
   {
     const auto & p = cell.getMatProps();
 
-    cell._current_iteration_source = p._g_src.size() != 0u ? 0.5 * p._g_src[g] / M_PI : 0.0;
     cell._current_scalar_flux = 0.0;
+
+    cell._current_iteration_source = p._g_src.size() != 0u ? 0.5 * p._g_src[g] / M_PI : 0.0;
+
+    // Accumulate the transient step source.
+    if (_mode == RunMode::Transient && cell.hasStepSource())
+    {
+      const auto & ss = cell.getSourceStep();
+      switch (ss._type)
+      {
+        case StepType::Both:
+          cell._current_iteration_source += ss._insert_time <= t && t <= ss._remove_time ? 0.5 * ss._g_src[g] / M_PI : 0.0;
+          break;
+        case StepType::Insert:
+          cell._current_iteration_source += ss._insert_time <= t ? 0.5 * ss._g_src[g] / M_PI : 0.0;
+          break;
+        case StepType::Remove:
+          cell._current_iteration_source += t <= ss._remove_time ? 0.5 * ss._g_src[g] / M_PI : 0.0;
+          break;
+      }
+    }
 
     for (unsigned int g_prime = 0u; g_prime < _num_groups; ++g_prime)
     {
@@ -280,7 +299,7 @@ TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
       }
 
       // Accumulate the contribution from delayed neutrons.
-      if (p._num_d_groups > 0u)
+      if (p._num_d_groups > 0u && _mode == RunMode::Transient)
         for (unsigned int d = 0u; d < p._num_d_groups; ++d)
           cell._current_iteration_source += 0.5 * p._n_g_chi_d[g * p._num_d_groups + d] * cell._current_t_dnps[d] * p._n_lambda[d] / M_PI;
 

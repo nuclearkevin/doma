@@ -41,6 +41,18 @@ CartesianCell2D::getMatProps() const
   return _parent_mesh->_block_mat_info.at(_block_id);
 }
 
+bool
+CartesianCell2D::hasStepSource() const
+{
+  return _parent_mesh->_block_step_src.count(_block_id) != 0u;
+}
+
+const SourceStep &
+CartesianCell2D::getSourceStep() const
+{
+  return _parent_mesh->_block_step_src.at(_block_id);
+}
+
 // Check to see if a point is in the cell.
 bool
 CartesianCell2D::pointInCell(const double & x, const double & y) const

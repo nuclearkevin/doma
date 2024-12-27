@@ -14,10 +14,7 @@ class TransportSolver2D;
 class BrickMesh2D
 {
 public:
-  BrickMesh2D(const std::vector<unsigned int> & nx, const std::vector<unsigned int> & ny,
-              const std::vector<double> & dx, const std::vector<double> & dy,
-              const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 4u> & bcs,
-              const std::unordered_map<unsigned int, MaterialProps> & props);
+  BrickMesh2D(const InputParameters & params, const std::array<BoundaryCondition, 4u> & bcs);
 
   // Make sure each block has material properties.
   void validateProps();
@@ -84,4 +81,7 @@ private:
 
   // Material properties for this mesh.
   const std::unordered_map<unsigned int, MaterialProps> & _block_mat_info;
+
+  // Source step transients for this mesh.
+  const std::unordered_map<unsigned int, SourceStep> & _block_step_src;
 }; // class BrickMesh2D
