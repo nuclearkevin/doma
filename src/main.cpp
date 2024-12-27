@@ -73,37 +73,54 @@ main(int argc, char** argv)
                             params._block_mat_info);
     mesh.validateProps();
 
-    if (params._mode == RunMode::FixedSrc)
+    if (params._eq_type == EquationType::DD)
     {
-      if (params._eq_type == EquationType::DD)
+      DDTransportSolver2D solver(mesh, params, args.get<bool>("--verbose"));
+      if (params._mode == RunMode::FixedSrc)
       {
-        DDTransportSolver2D solver(mesh, params._mode, args.get<bool>("--verbose"), params._num_e_groups, params._num_polar, params._num_azimuthal);
-        if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-          mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+        if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Fixed source solver finished executing." << std::endl;
+          std::exit(0);
+        }
       }
-      else if (params._eq_type == EquationType::TW_DD)
+      else if (params._mode == RunMode::Transient)
       {
-        TWDDTransportSolver2D solver(mesh, params._mode, args.get<bool>("--verbose"), params._num_e_groups, params._num_polar, params._num_azimuthal);
-        if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-          mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+        if (solver.solveTransient((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Transient solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else
+      {
+        std::cerr << "Unsupported execution mode!" << std::endl;
+        std::exit(1);
       }
     }
-    else if (params._mode == RunMode::Transient)
+    else if (params._eq_type == EquationType::TW_DD)
     {
-      auto dt = (params._t1 - params._t0) / static_cast<double>(params._num_steps);
-      if (params._eq_type == EquationType::DD)
+      TWDDTransportSolver2D solver(mesh, params, args.get<bool>("--verbose"));
+      if (params._mode == RunMode::FixedSrc)
       {
-        DDTransportSolver2D solver(mesh, params._mode, args.get<bool>("--verbose"), params._num_e_groups, params._num_polar, params._num_azimuthal);
-        solver.solveTransient(params._t0, dt, params._num_steps, params._ic,
-                              params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it,
-                              (inp_path.parent_path().string() / inp_path.stem()).string());
+        if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Fixed source solver finished executing." << std::endl;
+          std::exit(0);
+        }
       }
-      else if (params._eq_type == EquationType::TW_DD)
+      else if (params._mode == RunMode::Transient)
       {
-        TWDDTransportSolver2D solver(mesh, params._mode, args.get<bool>("--verbose"), params._num_e_groups, params._num_polar, params._num_azimuthal);
-        solver.solveTransient(params._t0, dt, params._num_steps, params._ic,
-                              params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it,
-                              (inp_path.parent_path().string() / inp_path.stem()).string());
+        if (solver.solveTransient((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Transient solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else
+      {
+        std::cerr << "Unsupported execution mode!" << std::endl;
+        std::exit(1);
       }
     }
   }

@@ -1,36 +1,39 @@
 #include "TransportSolver2D.h"
 
 template <typename T>
-TransportSolver2D<T>::TransportSolver2D(BrickMesh2D & mesh, const RunMode & mode, bool verbose,
-                                        unsigned int num_groups, unsigned int n_l, unsigned int n_c)
-  : _num_groups(num_groups),
-    _mode(mode),
+TransportSolver2D<T>::TransportSolver2D(BrickMesh2D & mesh, const InputParameters & params, bool verbose)
+  : _num_groups(params._num_e_groups),
+    _mode(params._mode),
     _mesh(mesh),
-    _angular_quad(2u * n_c, 2u * n_l, 2u),
+    _angular_quad(2u * params._num_azimuthal, 2u * params._num_polar, 2u),
     _eq_system(),
-    _verbose(verbose)
+    _verbose(verbose),
+    _sit(params._src_it_tol),
+    _smi(params._num_src_it),
+    _mgt(params._gs_tol),
+    _mgi(params._num_mg_it),
+    _t0(params._t0),
+    _dt((params._t1 - params._t0) / static_cast<double>(params._num_steps)),
+    _t_steps(params._num_steps),
+    _ic(params._ic)
 {
   _mesh._num_groups = _num_groups;
 }
 
 template <typename T>
 bool
-TransportSolver2D<T>::solveTransient(const double & t0, const double & dt, unsigned int t_steps, const TransientIC & ic,
-                                     const double & sit, unsigned int smi, double mgt, unsigned int mgi,
-                                     const std::string & output_file_base)
+TransportSolver2D<T>::solveTransient(const std::string & output_file_base)
 {
-  _dt = dt;
-
   // Compute initial conditions.
   bool res = true;
   std::cout << "Setting up initial conditions..." << std::endl;
-  switch (ic)
+  switch (_ic)
   {
     case TransientIC::Zero:
       initZeroIC();
       break;
     case TransientIC::SteadyState:
-      res = initSteadyIC(sit, smi, mgt, mgi);
+      res = initSteadyIC();
       break;
     default:
       break;
@@ -44,10 +47,10 @@ TransportSolver2D<T>::solveTransient(const double & t0, const double & dt, unsig
   _mesh.dumpToTextFile(output_file_base);
 
   double t = 0.0;
-  for (unsigned int step = 0u; step < t_steps; ++step)
+  for (unsigned int step = 0u; step < _t_steps; ++step)
   {
     std::cout << "Solving timestep " << step << "..." << std::endl;
-    res = solveFixedSource(sit, smi, mgt, mgi, t);
+    res = solveFixedSource("", t);
 
     // Failed to solve the steady-state problem at the current timestep, abort.
     if (!res)
@@ -60,10 +63,10 @@ TransportSolver2D<T>::solveTransient(const double & t0, const double & dt, unsig
     _mesh.dumpDNPsToTextFile(output_file_base + "_t" + std::to_string(step));
 
     // Copy the curernt timestep's fluxes into the previous step's and zero the current iteration's fluxes.
-    if (step != t_steps - 1)
+    if (step != _t_steps - 1)
       updateStepFluxes();
 
-    t += dt;
+    t += _dt;
   }
 
   return true;
@@ -90,12 +93,12 @@ TransportSolver2D<T>::initZeroIC()
 
 template <typename T>
 bool
-TransportSolver2D<T>::initSteadyIC(const double & sit, unsigned int smi, double mgt, unsigned int mgi)
+TransportSolver2D<T>::initSteadyIC()
 {
   initializeSolve();
 
   // Run a steady-state solve to compute initial conditions.
-  auto res = solveFixedSource(sit, smi, mgt, mgi);
+  auto res = solveFixedSource();
 
   // Failed to solve the steady-state problem at the current timestep, abort.
   if (!res)
@@ -177,7 +180,7 @@ TransportSolver2D<T>::stepDNPs()
 
 template <typename T>
 bool
-TransportSolver2D<T>::solveFixedSource(const double & sit, unsigned int smi, double mgt, unsigned int mgi, double t)
+TransportSolver2D<T>::solveFixedSource(const std::string & output_file_base, const double & t)
 {
   if (_mode != RunMode::Transient)
   {
@@ -202,7 +205,7 @@ TransportSolver2D<T>::solveFixedSource(const double & sit, unsigned int smi, dou
     for (unsigned int g = 0u; g < _num_groups; ++g)
     {
       updateMultigroupSource(g, t);
-      auto res = sourceIteration(sit, smi, g);
+      auto res = sourceIteration(g);
       if (!res)
         return res;
     }
@@ -212,15 +215,19 @@ TransportSolver2D<T>::solveFixedSource(const double & sit, unsigned int smi, dou
     previous_norm = current_norm;
 
     mg_iteration++;
-  } while (mg_iteration < mgi && mgt < current_residual && _num_groups > 1u);
+  } while (mg_iteration < _mgi && _mgt < current_residual && _num_groups > 1u);
 
-  if (mg_iteration < mgi)
+  if (mg_iteration < _mgi)
   {
     if (_num_groups > 1u)
     {
       std::cout << "MGI converged after " << mg_iteration
                 << " iterations with a residual of " << current_residual << std::endl;
     }
+
+    if (output_file_base != "")
+      _mesh.dumpToTextFile(output_file_base);
+
     return true;
   }
   else
@@ -251,6 +258,7 @@ TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
   {
     const auto & p = cell.getMatProps();
 
+    // TODO: better transient source API.
     cell._current_iteration_source = p._g_src.size() != 0u && t < 5.0 ? 0.5 * p._g_src[g] / M_PI : 0.0;
     cell._current_scalar_flux = 0.0;
 
@@ -277,7 +285,7 @@ TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
         for (unsigned int d = 0u; d < p._num_d_groups; ++d)
           cell._current_iteration_source += 0.5 * p._n_g_chi_d[g * p._num_d_groups + d] * cell._current_t_dnps[d] * p._n_lambda[d] / M_PI;
 
-      // Accumulate the transoent source.
+      // Accumulate the transient source.
       if (_mode == RunMode::Transient)
         cell._current_iteration_source += 0.5 * cell._last_t_scalar_flux[g] * p._g_inv_v[g] / _dt / M_PI;
     }
@@ -287,7 +295,7 @@ TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
 
 template <typename T>
 bool
-TransportSolver2D<T>::sourceIteration(const double & sit, unsigned int smi, unsigned int g)
+TransportSolver2D<T>::sourceIteration(unsigned int g)
 {
   unsigned int source_iteration = 0u;
   double current_residual = 0.0;
@@ -308,9 +316,9 @@ TransportSolver2D<T>::sourceIteration(const double & sit, unsigned int smi, unsi
 
     source_iteration++;
   }
-  while (source_iteration < smi &&  sit < current_residual);
+  while (source_iteration < _smi && _sit < current_residual);
 
-  if (source_iteration < smi)
+  if (source_iteration < _smi)
   {
     std::cout << "SI converged after " << source_iteration
               << " iterations with a residual of " << current_residual << " for G"
