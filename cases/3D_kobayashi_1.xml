@@ -5,8 +5,8 @@
 <doma_inp>
   <solver solve_type="steady" scheme="tw_dd" num_groups="1" fs_tol="1e-3"
           mg_tol="1e-3" fs_max_it="100" mg_max_it="100"/>
-  <angular_quad type="gc" np="1" na="1"/>
-  <mesh dims="3" refinement="0">
+  <angular_quad type="gc" np="10" na="10"/>
+  <mesh dims="3" refinement="2">
     <dx vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
     <dy vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
     <dz vals="50.0, 40.0, 20.0, 40.0, 50.0"/>
