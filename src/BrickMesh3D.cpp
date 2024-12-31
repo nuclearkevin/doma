@@ -5,24 +5,22 @@
 #include <iomanip>
 #include <limits>
 
-BrickMesh3D::BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector<unsigned int> & ny, const std::vector<unsigned int> & nz,
-                         const std::vector<double> & dx, const std::vector<double> & dy, const std::vector<double> & dz,
-                         const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 6u> & bcs,
-                         const std::unordered_map<unsigned int, MaterialProps> & props)
-  : _nx(nx),
-    _ny(ny),
-    _nz(nz),
+BrickMesh3D::BrickMesh3D(const InputParameters & params, const std::array<BoundaryCondition, 6u> & bcs)
+  : _nx(params._x_intervals),
+    _ny(params._y_intervals),
+    _nz(params._z_intervals),
     _tot_num_x(0u),
     _tot_num_y(0u),
     _tot_num_z(0u),
-    _dx(dx),
-    _dy(dy),
-    _dz(dz),
-    _blocks(blocks),
+    _dx(params._dx),
+    _dy(params._dy),
+    _dz(params._dz),
+    _blocks(params._blocks),
     _num_cells(0u),
     _total_volume(0.0),
     _bcs(bcs),
-    _block_mat_info(props)
+    _block_mat_info(params._block_mat_info),
+    _block_step_src(params._block_step_src)
 {
   if (_nx.size() * _ny.size() * _nz.size() != _blocks.size())
   {
@@ -188,14 +186,6 @@ BrickMesh3D::validateProps()
   }
 }
 
-void
-BrickMesh3D::initFluxes(unsigned int num_groups)
-{
-  _num_groups = num_groups;
-  for (auto & cell : _cells)
-    cell.initFluxes(num_groups);
-}
-
 // Returns true if the point exists on the mesh, false if it does not. The flux at that point
 // will be stored in 'returned_flux' if the point is on the mesh.
 bool
@@ -214,45 +204,84 @@ BrickMesh3D::fluxAtPoint(const double & x, const double & y, const double & z, u
 
 // Dump the flux to a text file.
 void
-BrickMesh3D::dumpToTextFile(const std::string & file_name)
+BrickMesh3D::dumpToTextFile(const std::string & file_name, bool only_flux)
 {
-  std::ofstream dims(file_name + "_dims.txt", std::ofstream::out);
-  std::ofstream blocks(file_name + "_blocks.txt", std::ofstream::out);
-  std::ofstream x(file_name + "_meshx.txt", std::ofstream::out);
-  x << std::setprecision(6);
-  std::ofstream y(file_name + "_meshy.txt", std::ofstream::out);
-  y << std::setprecision(6);
-  std::ofstream z(file_name + "_meshz.txt", std::ofstream::out);
-  z << std::setprecision(6);
-  dims << "num_x: " << _tot_num_x << std::endl;
-  dims << "num_y: " << _tot_num_y << std::endl;
-  dims << "num_z: " << _tot_num_z << std::endl;
-  dims << "num_g: " << _num_groups << std::endl;
-  dims.close();
-
-  for (unsigned int g = 0u; g < _num_groups; ++g)
+  if (!only_flux)
   {
-    std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
+    std::ofstream dims(file_name + "_dims.txt", std::ofstream::out);
+    std::ofstream blocks(file_name + "_blocks.txt", std::ofstream::out);
+    std::ofstream x(file_name + "_meshx.txt", std::ofstream::out);
+    x << std::setprecision(6);
+    std::ofstream y(file_name + "_meshy.txt", std::ofstream::out);
+    y << std::setprecision(6);
+    std::ofstream z(file_name + "_meshz.txt", std::ofstream::out);
+    z << std::setprecision(6);
+    dims << "num_x: " << _tot_num_x << std::endl;
+    dims << "num_y: " << _tot_num_y << std::endl;
+    dims << "num_z: " << _tot_num_z << std::endl;
+    dims << "num_g: " << _num_groups << std::endl;
+    dims.close();
 
-    flux << std::setprecision(6);
+    for (unsigned int g = 0u; g < _num_groups; ++g)
+    {
+      std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
+
+      flux << std::setprecision(6);
+      for (const auto & cell : _cells)
+      {
+        flux << cell._total_scalar_flux[g] << std::endl;
+
+        if (g == 0u)
+        {
+          x << cell._x_c << std::endl;
+          y << cell._y_c << std::endl;
+          z << cell._z_c << std::endl;
+          blocks << cell._block_id << std::endl;
+        }
+      }
+      flux.close();
+    }
+    blocks.close();
+    x.close();
+    y.close();
+    z.close();
+  }
+  else
+  {
+    for (unsigned int g = 0u; g < _num_groups; ++g)
+    {
+      std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
+
+      flux << std::setprecision(6);
+      for (const auto & cell : _cells)
+        flux << cell._total_scalar_flux[g] << std::endl;
+      flux.close();
+    }
+  }
+}
+
+void
+BrickMesh3D::dumpDNPsToTextFile(const std::string & file_name)
+{
+  unsigned int num_d_groups = 0;
+  for (const auto & cell : _cells)
+    num_d_groups = std::max(cell.getMatProps()._num_d_groups, num_d_groups);
+
+  for (unsigned int d = 0u; d < num_d_groups; ++d)
+  {
+    std::ofstream dnps(file_name + "_d" + std::to_string(d) + "_dnps.txt", std::ofstream::out);
+
+    dnps << std::setprecision(6);
     for (const auto & cell : _cells)
     {
-      flux << cell._total_scalar_flux[g] << std::endl;
-
-      if (g == 0u)
-      {
-        x << cell._x_c << std::endl;
-        y << cell._y_c << std::endl;
-        z << cell._z_c << std::endl;
-        blocks << cell._block_id << std::endl;
-      }
+      if (cell._current_t_dnps.size() == num_d_groups)
+        dnps << cell._current_t_dnps[d] << std::endl;
+      else
+        dnps << 0.0 << std::endl;
     }
-    flux.close();
+
+    dnps.close();
   }
-  blocks.close();
-  x.close();
-  y.close();
-  z.close();
 }
 
 void

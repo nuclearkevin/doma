@@ -14,23 +14,20 @@ class TransportSolver3D;
 class BrickMesh3D
 {
 public:
-  BrickMesh3D(const std::vector<unsigned int> & nx, const std::vector<unsigned int> & ny, const std::vector<unsigned int> & nz,
-              const std::vector<double> & dx, const std::vector<double> & dy, const std::vector<double> & dz,
-              const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 6u> & bcs,
-              const std::unordered_map<unsigned int, MaterialProps> & props);
+  BrickMesh3D(const InputParameters & params, const std::array<BoundaryCondition, 6u> & bcs);
 
   // Make sure each block has material properties.
   void validateProps();
-
-  // A function to initialize the group-wise scalar fluxes in each cell.
-  void initFluxes(unsigned int num_groups);
 
   // Returns true if the point exists on the mesh, false if it does not. The flux at that point
   // will be stored in 'returned_flux' if the point is on the mesh.
   bool fluxAtPoint(const double & x, const double & y, const double & z, unsigned int g, double & returned_flux) const;
 
   // Dump the flux to a text file.
-  void dumpToTextFile(const std::string & file_name);
+  void dumpToTextFile(const std::string & file_name, bool only_flux = false);
+
+  // Dump the DNPs to a text file.
+  void dumpDNPsToTextFile(const std::string & file_name);
 
   // A debug helper to print all of the mesh cells.
   void printAllBlocks();
@@ -87,4 +84,7 @@ private:
 
   // Material properties for this mesh.
   const std::unordered_map<unsigned int, MaterialProps> & _block_mat_info;
+
+  // Source step transients for this mesh.
+  const std::unordered_map<unsigned int, SourceStep> & _block_step_src;
 }; // class BrickMesh3D

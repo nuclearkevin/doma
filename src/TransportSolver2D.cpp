@@ -173,7 +173,7 @@ TransportSolver2D<T>::stepDNPs()
 
       // Compute the current step DNP concentrations. This expression is obtained by analytically
       // solving the precursor ODE while assuming the DNP source from fission is a constant between steps.
-      auto decay = std::exp(-p._n_lambda[d] * _dt);
+      const auto decay = std::exp(-p._n_lambda[d] * _dt);
       cell._current_t_dnps[d] = (c_src / p._n_lambda[d]) * (1.0 - decay) + cell._last_t_dnps[d] * decay;
       cell._last_t_dnps[d] = cell._current_t_dnps[d];
     }

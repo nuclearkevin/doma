@@ -31,7 +31,7 @@ public:
     // Diamond difference approximation.
     // Computing cell-centered angular fluxes.
     double center_af = cell._current_iteration_source + (2.0 * x_uw_af * abs_mu / cell._l_x) + (2.0 * y_uw_af * abs_eta / cell._l_y);
-    center_af /= (2.0 * abs_mu / cell._l_x) + (2.0 * abs_eta / cell._l_x) + tot;
+    center_af /= (2.0 * abs_mu / cell._l_x) + (2.0 * abs_eta / cell._l_y) + tot;
 
     double interface_af_x = 2.0 * center_af - x_uw_af;
     double interface_af_y = 2.0 * center_af - y_uw_af;

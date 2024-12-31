@@ -5,18 +5,17 @@
 #include <iomanip>
 #include <limits>
 
-BrickMesh1D::BrickMesh1D(const std::vector<unsigned int> & nx, const std::vector<double> & dx,
-                         const std::vector<unsigned int> & blocks, const std::array<BoundaryCondition, 2u> & bcs,
-                         const std::unordered_map<unsigned int, MaterialProps> & props)
-  : _nx(nx),
+BrickMesh1D::BrickMesh1D(const InputParameters & params, const std::array<BoundaryCondition, 2u> & bcs)
+  : _nx(params._x_intervals),
     _tot_num_x(0u),
     _num_groups(1u),
-    _dx(dx),
-    _blocks(blocks),
+    _dx(params._dx),
+    _blocks(params._blocks),
     _num_cells(0u),
     _total_length(0.0),
     _bcs(bcs),
-    _block_mat_info(props)
+    _block_mat_info(params._block_mat_info),
+    _block_step_src(params._block_step_src)
 {
   if (_nx.size() != _blocks.size())
   {
@@ -94,15 +93,6 @@ BrickMesh1D::validateProps()
   }
 }
 
-// A function to initialize the group-wise scalar fluxes in each cell.
-void
-BrickMesh1D::initFluxes(unsigned int num_groups)
-{
-  _num_groups = num_groups;
-  for (auto & cell : _cells)
-    cell.initFluxes(num_groups);
-}
-
 // Returns true if the point exists on the mesh, false if it does not. The flux at that point
 // will be stored in 'returned_flux' if the point is on the mesh.
 bool
@@ -121,35 +111,74 @@ BrickMesh1D::fluxAtPoint(const double & x, unsigned int g, double & returned_flu
 
 // Dump the flux to a text file.
 void
-BrickMesh1D::dumpToTextFile(const std::string & file_name)
+BrickMesh1D::dumpToTextFile(const std::string & file_name, bool only_flux)
 {
-  std::ofstream dims(file_name + "_dims.txt", std::ofstream::out);
-  std::ofstream blocks(file_name + "_blocks.txt", std::ofstream::out);
-  std::ofstream x(file_name + "_meshx.txt", std::ofstream::out);
-  x << std::setprecision(6);
-  dims << "num_x: " << _tot_num_x << std::endl;
-  dims << "num_g: " << _num_groups << std::endl;
-  dims.close();
-
-  for (unsigned int g = 0u; g < _num_groups; ++g)
+  if (!only_flux)
   {
-    std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
+    std::ofstream dims(file_name + "_dims.txt", std::ofstream::out);
+    std::ofstream blocks(file_name + "_blocks.txt", std::ofstream::out);
+    std::ofstream x(file_name + "_meshx.txt", std::ofstream::out);
+    x << std::setprecision(6);
+    dims << "num_x: " << _tot_num_x << std::endl;
+    dims << "num_g: " << _num_groups << std::endl;
+    dims.close();
 
-    flux << std::setprecision(6);
+    for (unsigned int g = 0u; g < _num_groups; ++g)
+    {
+      std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
+
+      flux << std::setprecision(6);
+      for (const auto & cell : _cells)
+      {
+        flux << cell._total_scalar_flux[g] << std::endl;
+
+        if (g == 0u)
+        {
+          x << cell._x_c << std::endl;
+          blocks << cell._block_id << std::endl;
+        }
+      }
+      flux.close();
+    }
+    blocks.close();
+    x.close();
+  }
+  else
+  {
+    for (unsigned int g = 0u; g < _num_groups; ++g)
+    {
+      std::ofstream flux(file_name + "_g" + std::to_string(g) + "_flux.txt", std::ofstream::out);
+
+      flux << std::setprecision(6);
+      for (const auto & cell : _cells)
+        flux << cell._total_scalar_flux[g] << std::endl;
+      flux.close();
+    }
+  }
+}
+
+void
+BrickMesh1D::dumpDNPsToTextFile(const std::string & file_name)
+{
+  unsigned int num_d_groups = 0;
+  for (const auto & cell : _cells)
+    num_d_groups = std::max(cell.getMatProps()._num_d_groups, num_d_groups);
+
+  for (unsigned int d = 0u; d < num_d_groups; ++d)
+  {
+    std::ofstream dnps(file_name + "_d" + std::to_string(d) + "_dnps.txt", std::ofstream::out);
+
+    dnps << std::setprecision(6);
     for (const auto & cell : _cells)
     {
-      flux << cell._total_scalar_flux[g] << std::endl;
-
-      if (g == 0u)
-      {
-        x << cell._x_c << std::endl;
-        blocks << cell._block_id << std::endl;
-      }
+      if (cell._current_t_dnps.size() == num_d_groups)
+        dnps << cell._current_t_dnps[d] << std::endl;
+      else
+        dnps << 0.0 << std::endl;
     }
-    flux.close();
+
+    dnps.close();
   }
-  blocks.close();
-  x.close();
 }
 
 void

@@ -13,7 +13,7 @@
 int
 main(int argc, char** argv)
 {
-  argparse::ArgumentParser args("Discrete Ordinates MiniApp");
+  argparse::ArgumentParser args("Discrete Ordinates Mini-App");
   args.add_argument("-i", "--input_file")
       .required()
       .help("The path of a DOMA input file.");
@@ -40,22 +40,37 @@ main(int argc, char** argv)
   {
     std::array<BoundaryCondition, 2u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
 
-    auto mesh = BrickMesh1D(params._x_intervals,
-                            params._dx,
-                            params._blocks,
-                            boundary_conditions,
-                            params._block_mat_info);
+    auto mesh = BrickMesh1D(params, boundary_conditions);
     mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)
     {
-      DDTransportSolver1D solver(mesh, params._num_e_groups, params._num_polar);
-      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+      DDTransportSolver1D solver(mesh, params, args.get<bool>("--verbose"));
+      if (params._mode == RunMode::FixedSrc)
+      {
+        if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Fixed source solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else if (params._mode == RunMode::Transient)
+      {
+        if (solver.solveTransient((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Transient solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else
+      {
+        std::cerr << "Unsupported execution mode!" << std::endl;
+        std::exit(1);
+      }
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      std::cerr << "At present 1D calculations do not support theta-weighted diamond differences!" << std::endl;
+      std::cerr << "Theta-Weighted Diamond Differences are currently not supported in slab geometries!" << std::endl;
       std::exit(1);
     }
   }
@@ -124,28 +139,58 @@ main(int argc, char** argv)
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
 
-    auto mesh = BrickMesh3D(params._x_intervals,
-                            params._y_intervals,
-                            params._z_intervals,
-                            params._dx,
-                            params._dy,
-                            params._dz,
-                            params._blocks,
-                            boundary_conditions,
-                            params._block_mat_info);
+    auto mesh = BrickMesh3D(params, boundary_conditions);
     mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)
     {
-      DDTransportSolver3D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
-      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+      DDTransportSolver3D solver(mesh, params, args.get<bool>("--verbose"));
+      if (params._mode == RunMode::FixedSrc)
+      {
+        if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Fixed source solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else if (params._mode == RunMode::Transient)
+      {
+        if (solver.solveTransient((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Transient solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else
+      {
+        std::cerr << "Unsupported execution mode!" << std::endl;
+        std::exit(1);
+      }
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      TWDDTransportSolver3D solver(mesh, params._num_e_groups, params._num_polar, params._num_azimuthal);
-      if (solver.solveFixedSource(params._src_it_tol, params._num_src_it, params._gs_tol, params._num_mg_it))
-        mesh.dumpToTextFile((inp_path.parent_path().string() / inp_path.stem()).string());
+      TWDDTransportSolver3D solver(mesh, params, args.get<bool>("--verbose"));
+      if (params._mode == RunMode::FixedSrc)
+      {
+        if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Fixed source solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else if (params._mode == RunMode::Transient)
+      {
+        if (solver.solveTransient((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Transient solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else
+      {
+        std::cerr << "Unsupported execution mode!" << std::endl;
+        std::exit(1);
+      }
     }
   }
   else

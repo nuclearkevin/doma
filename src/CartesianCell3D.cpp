@@ -16,19 +16,12 @@ CartesianCell3D::CartesianCell3D(const double & lx, const double & ly, const dou
     _l_y(std::move(ly)),
     _l_z(std::move(lz)),
     _volume(_l_x * _l_y * _l_z),
+    _current_iteration_source(0.0),
+    _current_scalar_flux(0.0),
     _parent_mesh(parent_mesh),
     _interface_angular_fluxes({0.0, 0.0, 0.0, 0.0, 0.0, 0.0}),
     _neighbors({nullptr, nullptr, nullptr, nullptr, nullptr, nullptr})
 { }
-
-// Initialize the flux storage data structures.
-void
-CartesianCell3D::initFluxes(unsigned int num_groups)
-{
-  _total_scalar_flux.resize(num_groups, 0.0);
-  _current_iteration_source.resize(num_groups, 0.0);
-  _current_scalar_flux.resize(num_groups, 0.0);
-}
 
 void
 CartesianCell3D::addNeighbor(const CartesianCell3D * cell, CertesianFaceSide side)
@@ -49,6 +42,18 @@ const MaterialProps &
 CartesianCell3D::getMatProps() const
 {
   return _parent_mesh->_block_mat_info.at(_block_id);
+}
+
+bool
+CartesianCell3D::hasStepSource() const
+{
+  return _parent_mesh->_block_step_src.count(_block_id) != 0u;
+}
+
+const SourceStep &
+CartesianCell3D::getSourceStep() const
+{
+  return _parent_mesh->_block_step_src.at(_block_id);
 }
 
 // Check to see if a point is in the cell.
