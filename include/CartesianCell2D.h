@@ -16,7 +16,8 @@ class CartesianCell2D
 public:
   CartesianCell2D(const double & lx, const double & ly,
                   const double & x_center, const double & y_center,
-                  unsigned int cell_id, unsigned int block_id, BrickMesh2D * parent_mesh);
+                  unsigned int cell_id, unsigned int block_id,
+                  BrickMesh2D * parent_mesh);
 
   // Link the cell's neighbors to the cell.
   void addNeighbor(const CartesianCell2D * cell, CertesianFaceSide side);

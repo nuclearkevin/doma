@@ -166,13 +166,15 @@ TransportSolver2D<T>::stepDNPs()
 
     for (unsigned int d = 0u; d < p._num_d_groups; ++d)
     {
-      // Accumulate the DNP fission source.
-      double src = 0.0;
+      // Accumulate the DNP fission source for the current + previous timestep.
+      double c_src = 0.0;
       for (unsigned int g = 0u; g < _num_groups; ++g)
-        src += p._g_prod[g] * cell._total_scalar_flux[g] * p._g_n_beta[g * p._num_d_groups + d];
+        c_src += p._g_prod[g] * cell._total_scalar_flux[g] * p._g_n_beta[g * p._num_d_groups + d];
 
-      // Compute the current step DNP concentrations (assuming a constant fission source between steps).
-      cell._current_t_dnps[d] = (_dt * src + cell._last_t_dnps[d]) / (1 + _dt * p._n_lambda[d]);
+      // Compute the current step DNP concentrations. This expression is obtained by analytically
+      // solving the precursor ODE while assuming the DNP source from fission is a constant between steps.
+      auto decay = std::exp(-p._n_lambda[d] * _dt);
+      cell._current_t_dnps[d] = (c_src / p._n_lambda[d]) * (1.0 - decay) + cell._last_t_dnps[d] * decay;
       cell._last_t_dnps[d] = cell._current_t_dnps[d];
     }
   }
