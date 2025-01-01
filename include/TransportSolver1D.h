@@ -60,9 +60,8 @@ private:
   // We use a relative error metric in the L2 integral norm.
   double computeScatteringResidual(unsigned int g);
 
-  // Compute the L2 norm of the multi-group flux vectors. This is used to assess
-  // the convergence of multi-group Gauss-Seidel iteration.
-  double computeMGFluxNorm();
+  // Compute the residual of Gauss-Seidel iteration for the fixed-source flux shape.
+  double computeMGFluxResidual();
 
   // Invert the streaming and collision operator with a sweep.
   void sweep(unsigned int g);

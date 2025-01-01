@@ -81,6 +81,7 @@ TransportSolver2D<T>::initZeroIC()
     const auto & p = cell.getMatProps();
 
     cell._total_scalar_flux.resize(_num_groups, 0.0);
+    cell._prev_mg_scalar_flux.resize(_num_groups, 0.0);
     cell._last_t_scalar_flux.resize(_num_groups, 0.0);
     cell._current_t_dnps.resize(p._num_d_groups, 0.0);
     cell._last_t_dnps.resize(p._num_d_groups, 0.0);
@@ -192,8 +193,6 @@ TransportSolver2D<T>::solveFixedSource(const std::string & output_file_base, con
 
   unsigned int mg_iteration = 0u;
   double current_residual = 0.0;
-  double previous_norm = 1.0;
-  double current_norm = 0.0;
   do
   {
     std::cout << "Performing MGI " << mg_iteration;
@@ -212,9 +211,7 @@ TransportSolver2D<T>::solveFixedSource(const std::string & output_file_base, con
         return res;
     }
 
-    current_norm = computeMGFluxNorm();
-    current_residual = std::abs(current_norm - previous_norm) / previous_norm;
-    previous_norm = current_norm;
+    current_residual = computeMGFluxResidual();
 
     mg_iteration++;
   } while (mg_iteration < _mgi && _mgt < current_residual && _num_groups > 1u);
@@ -242,14 +239,20 @@ TransportSolver2D<T>::solveFixedSource(const std::string & output_file_base, con
 
 template <typename T>
 double
-TransportSolver2D<T>::computeMGFluxNorm()
+TransportSolver2D<T>::computeMGFluxResidual()
 {
-  double norm = 0.0;
+  double diff_L2 = 0.0;
+  double total_L2 = 0.0;
   for (auto & cell : _mesh._cells)
+  {
     for (unsigned int g = 0u; g < _num_groups; ++g)
-      norm += std::pow(cell._total_scalar_flux[g], 2.0) * cell._area;
+    {
+      diff_L2 += std::pow((cell._total_scalar_flux[g] - cell._prev_mg_scalar_flux[g]), 2.0) * cell._area;
+      total_L2 += std::pow(cell._total_scalar_flux[g], 2.0) * cell._area;
+    }
+  }
 
-  return std::sqrt(norm);
+  return total_L2 > 1e-8 ? std::sqrt(diff_L2) / std::sqrt(total_L2) : 0.0;
 }
 
 template <typename T>
@@ -309,6 +312,8 @@ TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
       if (_mode == RunMode::Transient)
         cell._current_iteration_source += 0.5 * cell._last_t_scalar_flux[g] * p._g_inv_v[g] / _dt / M_PI;
     }
+
+    cell._prev_mg_scalar_flux[g] = cell._total_scalar_flux[g];
     cell._total_scalar_flux[g] = 0.0;
   }
 }
@@ -367,8 +372,8 @@ TransportSolver2D<T>::initializeSolve()
 
   for (auto & cell : _mesh._cells)
   {
-    const auto & p = cell.getMatProps();
     cell._total_scalar_flux.resize(_num_groups, 0.0);
+    cell._prev_mg_scalar_flux.resize(_num_groups, 0.0);
 
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;

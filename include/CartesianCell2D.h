@@ -75,7 +75,8 @@ public:
   const double _area; // Area of the rectangle.
 
   // Flux properties.
-  std::vector<double> _total_scalar_flux;        // The sum of scalar fluxes from each scattering iteration.
+  std::vector<double> _total_scalar_flux;        // The accumulated scalar flux at the current multi-group iteration index.
+  std::vector<double> _prev_mg_scalar_flux;      // The accumulated scalar flux at the previous multi-group iteration index.
   double              _current_iteration_source; // The scattering source.
   double              _current_scalar_flux;      // For accumulating the current iteration's scalar flux while the angular flux is being swept.
 
