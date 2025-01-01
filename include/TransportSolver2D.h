@@ -28,7 +28,8 @@ public:
   // Solve the subcritical multiplication fixed source problem.
   bool solveFixedSource(const std::string & output_file_base = "", const double & t = 0.0);
 
-  // TODO: solve eigenvalue problems.
+  // Solve the fission eigenvalue problem.
+  bool solveEigenvalue(const std::string & output_file_base = "");
 
   // Solve the subcritical transient fixed source problem with delayed neutron precursors.
   bool solveTransient(const std::string & output_file_base = "");
@@ -49,6 +50,12 @@ private:
   // Update the external multi-group sources (in-scattering, fission, transient, and external sources)
   // between Gauss-Seidel iterations.
   void updateMultigroupSource(unsigned int g, double t = 0.0);
+
+  // Update the external multi-group source (in-scattering) between power iterations.
+  void updateMultigroupSourceEigen(unsigned int g);
+
+  // Update k_{eff} at the end of a power iteration.
+  void updateEigenvalue();
 
   // Solve the within-group equations for the scalar fluxes.
   bool sourceIteration(unsigned int g);
@@ -102,10 +109,19 @@ private:
   // The maximum number of source iterations.
   const unsigned int _smi;
 
-  // The convergence tolerance for multigroup iteration (Gauss-Seidel).
+  // The convergence tolerance for multi-group iteration (Gauss-Seidel / power iteration).
   const double _mgt;
-  // The maxmimum number of multigroup iterations.
+  // The maxmimum number of multi-group iterations.
   const unsigned int _mgi;
+
+  // The criticality eigenvalue k_{eff} at the current power iteration.
+  double _k;
+
+  // The criticality eigenvalue k_{eff} at the previous power iteration.
+  double _k_prev;
+
+  // The convergence criteria for k_{eff}.
+  const double _k_tol;
 
   // The initial time (if running a transient solve).
   const double _t0;

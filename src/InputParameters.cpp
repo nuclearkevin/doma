@@ -142,10 +142,7 @@ parseInputParameters(const std::string & file_path)
     params._num_mg_it = parseUintParam(s, "mg_max_it");
 
     if (params._mode == RunMode::Eigen)
-    {
-      params._pow_it_tol = parseDoubleParam(s, "pi_tol");
-      params._num_pi_it = parseUintParam(s, "pi_max_it");
-    }
+      params._k_tol = parseDoubleParam(s, "k_tol");
 
     if (params._mode == RunMode::Transient)
     {

@@ -69,14 +69,12 @@ struct InputParameters
   // The multi-group iteration (Gauss-Seidel) tolerance.
   double _gs_tol;
   // The k_{eff} convergence criteria for eigenvalue calculations.
-  double _pow_it_tol;
+  double _k_tol;
 
   // Maximum number of source iterations.
   unsigned int _num_src_it;
   // Maximum number of multi-group iterations.
   unsigned int _num_mg_it;
-  // Maximum number of power iterations.
-  unsigned int _num_pi_it;
 
   // Angular quadrature parameters.
   unsigned int _num_polar;
