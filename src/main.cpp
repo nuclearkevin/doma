@@ -62,6 +62,14 @@ main(int argc, char** argv)
           std::exit(0);
         }
       }
+      else if (params._mode == RunMode::Eigen)
+      {
+        if (solver.solveEigenvalue((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Eigenvalue solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
       else
       {
         std::cerr << "Unsupported execution mode!" << std::endl;
@@ -177,6 +185,14 @@ main(int argc, char** argv)
           std::exit(0);
         }
       }
+      else if (params._mode == RunMode::Eigen)
+      {
+        if (solver.solveEigenvalue((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Eigenvalue solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
       else
       {
         std::cerr << "Unsupported execution mode!" << std::endl;
@@ -199,6 +215,14 @@ main(int argc, char** argv)
         if (solver.solveTransient((inp_path.parent_path().string() / inp_path.stem()).string()))
         {
           std::cout << "Transient solver finished executing." << std::endl;
+          std::exit(0);
+        }
+      }
+      else if (params._mode == RunMode::Eigen)
+      {
+        if (solver.solveEigenvalue((inp_path.parent_path().string() / inp_path.stem()).string()))
+        {
+          std::cout << "Eigenvalue solver finished executing." << std::endl;
           std::exit(0);
         }
       }

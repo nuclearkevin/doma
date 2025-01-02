@@ -12,12 +12,74 @@ TransportSolver3D<T>::TransportSolver3D(BrickMesh3D & mesh, const InputParameter
     _smi(params._num_src_it),
     _mgt(params._gs_tol),
     _mgi(params._num_mg_it),
+    _k(1.0),
+    _k_prev(0.0),
+    _k_tol(params._k_tol),
     _t0(params._t0),
     _dt((params._t1 - params._t0) / static_cast<double>(params._num_steps)),
     _t_steps(params._num_steps),
     _ic(params._ic)
 {
   _mesh._num_groups = _num_groups;
+}
+
+template <typename T>
+bool
+TransportSolver3D<T>::solveEigenvalue(const std::string & output_file_base)
+{
+  std::cout << "Solving..." << std::endl;
+  initializeSolve();
+
+  unsigned int mg_iteration = 0u;
+  double current_shape_residual = 0.0;
+  double current_k_diff = 0.0;
+  do
+  {
+    std::cout << "Performing PI " << mg_iteration;
+    if (mg_iteration != 0u)
+      std::cout <<  ", shape residual = " << current_shape_residual
+                << ", k residual = " << current_k_diff << std::endl
+                << "k = " << _k << std::endl;
+    else
+      std::cout << std::endl;
+    std::cout << "----------------------------------------------------------------------------------"
+              << std::endl;
+
+    for (unsigned int g = 0u; g < _num_groups; ++g)
+    {
+      updateMultigroupSourceEigen(g);
+      auto res = sourceIteration(g);
+      if (!res)
+        return res;
+    }
+
+    updateEigenvalue();
+
+    current_shape_residual = computeMGFluxResidual();
+    current_k_diff = std::abs(_k - _k_prev);
+
+    mg_iteration++;
+  } while (mg_iteration < _mgi && (_mgt < current_shape_residual || _k_tol < current_k_diff));
+
+  if (mg_iteration < _mgi)
+  {
+    std::cout << "PI converged after " << mg_iteration
+              << " iterations with a flux shape residual of " << current_shape_residual
+              << " and a k residual of " << current_k_diff << "." << std::endl
+              << "Converged value of k = " << _k << std::endl;
+
+    if (output_file_base != "")
+      _mesh.dumpToTextFile(output_file_base);
+
+    return true;
+  }
+  else
+  {
+    std::cout << "PI failed to converge after " << mg_iteration
+              << " iterations with a flux shape residual of " << current_shape_residual
+              << " and a k residual of " << current_k_diff << "." << std::endl;
+    return false;
+  }
 }
 
 template <typename T>
@@ -319,6 +381,55 @@ TransportSolver3D<T>::updateMultigroupSource(unsigned int g, double t)
 }
 
 template <typename T>
+void
+TransportSolver3D<T>::updateMultigroupSourceEigen(unsigned int g)
+{
+  for (auto & cell : _mesh._cells)
+  {
+    const auto & p = cell.getMatProps();
+
+    cell._current_scalar_flux = 0.0;
+
+    for (unsigned int g_prime = 0u; g_prime < _num_groups; ++g_prime)
+    {
+      // Accumulate the in-scattering contribution.
+      if (g_prime != g)
+        cell._current_iteration_source += 0.25 * p._g_g_scatter_mat[g * _num_groups + g_prime] * cell._total_scalar_flux[g_prime] / M_PI;
+
+      // Accumulate the fission source scaled by k_{eff}.
+      if (p._g_chi_p.size() > 0u)
+        cell._current_iteration_source += 0.25 * p._g_chi_p[g] * p._g_prod[g_prime] * cell._total_scalar_flux[g_prime] / M_PI / _k;
+    }
+
+    cell._prev_mg_scalar_flux[g] = cell._total_scalar_flux[g];
+    cell._total_scalar_flux[g] = 0.0;
+  }
+}
+
+template <typename T>
+void
+TransportSolver3D<T>::updateEigenvalue()
+{
+  double num = 0.0;
+  double den = 0.0;
+  for (auto & cell : _mesh._cells)
+  {
+    const auto & p = cell.getMatProps();
+    if (p._g_prod.size() == 0u)
+      continue;
+
+    for (unsigned int g = 0u; g < _num_groups; ++g)
+    {
+      num += cell._l_x * p._g_prod[g] * cell._total_scalar_flux[g];
+      den += cell._l_x * p._g_prod[g] * cell._prev_mg_scalar_flux[g] / _k;
+    }
+  }
+
+  _k_prev = _k;
+  _k = num / den;
+}
+
+template <typename T>
 bool
 TransportSolver3D<T>::sourceIteration(unsigned int g)
 {
@@ -366,13 +477,17 @@ TransportSolver3D<T>::initializeSolve()
   std::cout << "Initializing the solver..." << std::endl;
 
   // Initializing the boundary condition data structure.
-  for (unsigned int i = 0u; i < 4u; ++i)
+  for (unsigned int i = 0u; i < 6u; ++i)
     if (_mesh._bcs[i] != BoundaryCondition::Vacuum)
       _mesh._boundary_angular_fluxes[i].resize(_mesh._boundary_cells[i].size() * _angular_quad.totalOrder(), 0.0);
 
   for (auto & cell : _mesh._cells)
   {
-    cell._total_scalar_flux.resize(_num_groups, 0.0);
+    switch (_mode)
+    {
+      case RunMode::Eigen: cell._total_scalar_flux.resize(_num_groups, 1.0); break;
+      default:             cell._total_scalar_flux.resize(_num_groups, 0.0); break;
+    }
     cell._prev_mg_scalar_flux.resize(_num_groups, 0.0);
 
     cell._current_iteration_source = 0.0;

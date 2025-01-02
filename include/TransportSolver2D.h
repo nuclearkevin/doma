@@ -51,7 +51,7 @@ private:
   // between Gauss-Seidel iterations.
   void updateMultigroupSource(unsigned int g, double t = 0.0);
 
-  // Update the external multi-group source (in-scattering) between power iterations.
+  // Update the external multi-group source (in-scattering and eigenvalue-scaled fission) between power iterations.
   void updateMultigroupSourceEigen(unsigned int g);
 
   // Update k_{eff} at the end of a power iteration.
@@ -116,10 +116,8 @@ private:
 
   // The criticality eigenvalue k_{eff} at the current power iteration.
   double _k;
-
   // The criticality eigenvalue k_{eff} at the previous power iteration.
   double _k_prev;
-
   // The convergence criteria for k_{eff}.
   const double _k_tol;
 
