@@ -26,8 +26,8 @@ def main():
 
   x_vals = np.loadtxt(dir_path + "/" + input_name + "_meshx.txt")
   y_vals = np.loadtxt(dir_path + "/" + input_name + "_meshy.txt")
-  x_2D = x_vals.reshape((dim_x, dim_y))
-  y_2D = y_vals.reshape((dim_x, dim_y))
+  x_2D = x_vals.reshape((dim_y, dim_x))
+  y_2D = y_vals.reshape((dim_y, dim_x))
 
   for grp in range(grps):
     raw_flux = np.array([1])
@@ -36,7 +36,7 @@ def main():
     else:
       raw_flux = np.loadtxt(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.txt")
 
-    flux_2D = raw_flux.reshape((dim_x, dim_y))
+    flux_2D = raw_flux.reshape((dim_y, dim_x))
     if cli_args.log_scale == True:
       fig, ax = plt.subplots()
       mappable = ax.pcolor(x_2D, y_2D, flux_2D,

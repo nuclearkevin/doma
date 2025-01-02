@@ -28,8 +28,8 @@ def main():
 
   x_vals = np.loadtxt(dir_path + "/" + input_name + "_meshx.txt")
   y_vals = np.loadtxt(dir_path + "/" + input_name + "_meshy.txt")
-  x_3D = x_vals.reshape((dim_x, dim_y, dim_z))
-  y_3D = y_vals.reshape((dim_x, dim_y, dim_z))
+  x_3D = x_vals.reshape((dim_z, dim_y, dim_x))
+  y_3D = y_vals.reshape((dim_z, dim_y, dim_x))
 
   s = int(cli_args.z_slice)
   if s < 0 or s >= dim_z:
@@ -43,7 +43,7 @@ def main():
     else:
       raw_flux = np.loadtxt(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.txt")
 
-    flux_3D = raw_flux.reshape((dim_x, dim_y, dim_z))
+    flux_3D = raw_flux.reshape((dim_z, dim_y, dim_x))
     if cli_args.log_scale == True:
       fig, ax = plt.subplots()
       mappable = ax.pcolor(x_3D[s], y_3D[s], flux_3D[s],
