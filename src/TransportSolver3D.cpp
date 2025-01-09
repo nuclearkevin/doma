@@ -420,8 +420,8 @@ TransportSolver3D<T>::updateEigenvalue()
 
     for (unsigned int g = 0u; g < _num_groups; ++g)
     {
-      num += cell._l_x * p._g_prod[g] * cell._total_scalar_flux[g];
-      den += cell._l_x * p._g_prod[g] * cell._prev_mg_scalar_flux[g] / _k;
+      num += cell._volume * p._g_prod[g] * cell._total_scalar_flux[g];
+      den += cell._volume * p._g_prod[g] * cell._prev_mg_scalar_flux[g] / _k;
     }
   }
 
