@@ -11,6 +11,8 @@ A multigroup discrete ordinates radiation transport solver for 1D/2D/3D orthogon
 - Theta-weighted upwinded diamond differences for spatial discretization;
 - Arbitrary cartesian meshes with an input syntax similar to MOOSE's CartesianMeshGenerator.
 
+## Sample problems
+
 <p align="center">
   <img src="/images/2D_g1_lin.png" width="200" />
   <img src="/images/2D_g2_lin.png" width="200" />
@@ -19,7 +21,7 @@ A multigroup discrete ordinates radiation transport solver for 1D/2D/3D orthogon
 </p>
 
 <p align="center">
-Eigenfluxes in a 2D, 3 group subcritical assembly problem.
+Eigenfluxes in a 2D, 3 group subcritical assembly: `cases/2D_assembly_eig.xml`
 </p>
 
 <p align="center">
@@ -30,7 +32,7 @@ Eigenfluxes in a 2D, 3 group subcritical assembly problem.
 </p>
 
 <p align="center">
-Eigenfluxes in a 3D, 3 group subcritical assembly problem.
+Eigenfluxes in a 3D, 3 group subcritical assembly: `cases/3D_assembly_eig.xml`
 </p>
 
 <p align="center">
@@ -39,5 +41,5 @@ Eigenfluxes in a 3D, 3 group subcritical assembly problem.
 </p>
 
 <p align="center">
-Scalar flux in the fixed-source Kobayashi benchmark (problem 3).
+Scalar flux in the fixed-source Kobayashi benchmark (problem 3): `cases/3D_kobayashi_3.xml`
 </p>
