@@ -15,10 +15,20 @@ A multigroup discrete ordinates radiation transport solver for 1D/2D/3D orthogon
   <img src="/images/2D_g1_lin.png" width="200" />
   <img src="/images/2D_g2_lin.png" width="200" />
   <img src="/images/2D_g3_lin.png" width="200" />
+
+  Eigenfluxes in a 2D, 3 group subcritical assembly problem.
 </p>
 
 <p align="center">
   <img src="/images/3D_g1_lin.png" width="200" />
   <img src="/images/3D_g2_lin.png" width="200" />
   <img src="/images/3D_g3_lin.png" width="200" />
+
+  Eigenfluxes in a 3D, 3 group subcritical assembly problem.
+</p>
+
+<p align="center">
+  <img src="/images/3D_kob_3.png" width="600" />
+
+  Scalar fluxes in the fixed-source Kobayashi benchmark (problem 3).
 </p>
