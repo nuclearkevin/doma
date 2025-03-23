@@ -23,7 +23,7 @@ template <typename T>
 class TransportSolver2D
 {
 public:
-  TransportSolver2D(BrickMesh2D & mesh, const InputParameters & params, bool verbose);
+  TransportSolver2D(BrickMesh2D & mesh, const InputParameters & params, bool verbose, unsigned int num_threads);
 
   // Solve the subcritical multiplication fixed source problem.
   bool solveFixedSource(const std::string & output_file_base = "", const double & t = 0.0);
@@ -130,6 +130,9 @@ private:
 
   // The initial condition type (if running a transient solve).
   const TransientIC _ic;
+
+  // The number of OpenMP threads to use.
+  const unsigned int _num_threads;
 }; // class TransportSolver
 
 extern template class TransportSolver2D<TWDiamondDifference2D>;

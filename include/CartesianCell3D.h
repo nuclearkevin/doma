@@ -2,6 +2,8 @@
 
 #include <array>
 
+#include "Parallel.h"
+
 #include "TransportBase.h"
 #include "InputParameters.h"
 
@@ -22,11 +24,14 @@ public:
   void addNeighbor(const CartesianCell3D * cell, CertesianFaceSide side);
 
   // Helper to fetch the interface flux.
-  const double & interfaceFlux(CertesianFaceSide side) const { return _interface_angular_fluxes[static_cast<unsigned int>(side)]; }
-  void setInterfaceFlux(CertesianFaceSide side, const double & val)
-  {
-    _interface_angular_fluxes[static_cast<unsigned int>(side)] = val;
-  }
+  const double & interfaceFlux(CertesianFaceSide side, unsigned int tid) const;
+  void setInterfaceFlux(CertesianFaceSide side, const double & val, unsigned int tid);
+  void setAllInterfaceFluxes(const double & val, unsigned int tid);
+
+  // Helper functions to get or modify the swept scalar flux.
+  void accumulateSweptFlux(const double & val, unsigned int tid);
+  void setSweptFlux(const double & val, unsigned int tid);
+  double getSweptFlux(unsigned int tid) const;
 
   // Helper to fetch BCs.
   double boundaryFlux(CertesianFaceSide side, unsigned int ordinate_index);
@@ -93,7 +98,7 @@ public:
   // Flux properties.
   std::vector<double> _total_scalar_flux;        // The accumulated scalar flux at the current multi-group iteration index.
   std::vector<double> _prev_mg_scalar_flux;      // The accumulated scalar flux at the previous multi-group iteration index.
-  double              _current_iteration_source; // The scattering source.
+  double              _current_iteration_source; // The current iteration scattering source.
   double              _current_scalar_flux;      // For accumulating the current iteration's scalar flux while the angular flux is being swept.
 
   // Previous timestep fluxes.
@@ -111,10 +116,6 @@ protected:
 
   // The mesh which owns this cell.
   BrickMesh3D * _parent_mesh;
-
-  // The interface angular fluxes. Downwind fluxes are computed by the cell, upwind fluxes are pulled from neighboring cells.
-  // Organized in the following order: Front, Back, Right, Left, Top, Bottom.
-  std::array<double, 6u> _interface_angular_fluxes;
 
   // A list of neighboring cells. Organized in the following order: Front, Back, Right, Left, Top, Bottom.
   std::array<const CartesianCell3D *, 6u> _neighbors;

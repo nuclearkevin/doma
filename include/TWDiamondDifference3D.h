@@ -18,8 +18,8 @@ public:
              unsigned int group, CertesianFaceSide x_uw,
              CertesianFaceSide x_dw, CertesianFaceSide y_uw,
              CertesianFaceSide y_dw, CertesianFaceSide z_uw,
-             CertesianFaceSide z_dw, RunMode mode = RunMode::FixedSrc,
-             const double & dt = 0.0) const
+             CertesianFaceSide z_dw, unsigned int tid,
+             RunMode mode = RunMode::FixedSrc, const double & dt = 0.0) const
   {
     const auto & p = cell.getMatProps();
     auto tot = p._g_total[group];
@@ -30,9 +30,9 @@ public:
     constexpr double theta_s = 0.9;
 
     // Grab the upwind interfacing angular fluxes. The branches handle the boundary conditions.
-    double x_uw_af = cell.neighbor(x_uw) ? cell.neighbor(x_uw)->interfaceFlux(x_dw) : cell.boundaryFlux(x_uw, ordinate_index);
-    double y_uw_af = cell.neighbor(y_uw) ? cell.neighbor(y_uw)->interfaceFlux(y_dw) : cell.boundaryFlux(y_uw, ordinate_index);
-    double z_uw_af = cell.neighbor(z_uw) ? cell.neighbor(z_uw)->interfaceFlux(z_dw) : cell.boundaryFlux(z_uw, ordinate_index);
+    double x_uw_af = cell.neighbor(x_uw) ? cell.neighbor(x_uw)->interfaceFlux(x_dw, tid) : cell.boundaryFlux(x_uw, ordinate_index);
+    double y_uw_af = cell.neighbor(y_uw) ? cell.neighbor(y_uw)->interfaceFlux(y_dw, tid) : cell.boundaryFlux(y_uw, ordinate_index);
+    double z_uw_af = cell.neighbor(z_uw) ? cell.neighbor(z_uw)->interfaceFlux(z_dw, tid) : cell.boundaryFlux(z_uw, ordinate_index);
 
     // Compute the weighting factors.
     const double A = cell._l_y * cell._l_z;
@@ -83,11 +83,11 @@ public:
     double interface_af_z = (center_af / c) - (((1.0 - c) / c) * z_uw_af);
 
     // Add this angular flux's contribution to the scalar flux.
-    cell._current_scalar_flux += angular_weight * center_af;
+    cell.accumulateSweptFlux(angular_weight * center_af, tid);
 
     // Update the interface angular fluxes using the diamond difference closures. 2nd order accurate!
-    cell.setInterfaceFlux(x_dw, interface_af_x);
-    cell.setInterfaceFlux(y_dw, interface_af_y);
-    cell.setInterfaceFlux(z_dw, interface_af_z);
+    cell.setInterfaceFlux(x_dw, interface_af_x, tid);
+    cell.setInterfaceFlux(y_dw, interface_af_y, tid);
+    cell.setInterfaceFlux(z_dw, interface_af_z, tid);
   }
 };

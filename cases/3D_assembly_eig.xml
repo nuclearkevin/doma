@@ -1,14 +1,14 @@
 <doma_inp>
   <solver solve_type="eigen" scheme="tw_dd" num_groups="3" fs_tol="1e-4"
           mg_tol="1e-4" fs_max_it="500" mg_max_it="500" k_tol="1e-5"/>
-  <angular_quad type="gc" np="3" na="3"/>
+  <angular_quad type="gc" np="4" na="4"/>
   <mesh dims="3" refinement="0">
     <dx     vals="16.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 16.0"/>
     <dy     vals="16.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 16.0"/>
     <dz     vals="76.0"/>
     <ix     vals="32,   8,   8,   8,   8,   8,   8,   8,   8,   8,   8,   8,   32"/>
     <iy     vals="32,   8,   8,   8,   8,   8,   8,   8,   8,   8,   8,   8,   32"/>
-    <iz     vals="19"/>
+    <iz     vals="76"/>
     <blocks vals="0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                   0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
                   0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0,

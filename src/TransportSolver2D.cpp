@@ -1,7 +1,7 @@
 #include "TransportSolver2D.h"
 
 template <typename T>
-TransportSolver2D<T>::TransportSolver2D(BrickMesh2D & mesh, const InputParameters & params, bool verbose)
+TransportSolver2D<T>::TransportSolver2D(BrickMesh2D & mesh, const InputParameters & params, bool verbose, unsigned int num_threads)
   : _num_groups(params._num_e_groups),
     _mode(params._mode),
     _mesh(mesh),
@@ -18,7 +18,8 @@ TransportSolver2D<T>::TransportSolver2D(BrickMesh2D & mesh, const InputParameter
     _t0(params._t0),
     _dt((params._t1 - params._t0) / static_cast<double>(params._num_steps)),
     _t_steps(params._num_steps),
-    _ic(params._ic)
+    _ic(params._ic),
+    _num_threads(num_threads)
 {
   _mesh._num_groups = _num_groups;
 }

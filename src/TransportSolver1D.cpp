@@ -1,7 +1,7 @@
 #include "TransportSolver1D.h"
 
 template <typename T>
-TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameters & params, bool verbose)
+TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameters & params, bool verbose, unsigned int num_threads)
   : _num_groups(params._num_e_groups),
     _mode(params._mode),
     _mesh(mesh),
@@ -18,7 +18,8 @@ TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameter
     _t0(params._t0),
     _dt((params._t1 - params._t0) / static_cast<double>(params._num_steps)),
     _t_steps(params._num_steps),
-    _ic(params._ic)
+    _ic(params._ic),
+    _num_threads(num_threads)
 {
   _mesh._num_groups = _num_groups;
 }
@@ -37,7 +38,7 @@ TransportSolver1D<T>::solveEigenvalue(const std::string & output_file_base)
   {
     std::cout << "Performing PI " << mg_iteration;
     if (mg_iteration != 0u)
-      std::cout <<  ", shape residual = " << current_shape_residual
+      std::cout << ", shape residual = " << current_shape_residual
                 << ", k residual = " << current_k_diff << std::endl
                 << "k = " << _k << std::endl;
     else
