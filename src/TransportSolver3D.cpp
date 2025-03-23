@@ -612,7 +612,8 @@ template <typename SweepFunction>
 void
 TransportSolver3D<T>::parallelSweepOctant(Octant oct, unsigned int g, SweepFunction func)
 {
-  #pragma omp parallel
+  #pragma omp parallel for
+  for (unsigned int n = 0; n < _angular_quad.order(oct); ++n)
   {
     double mu = 0.0;
     double eta = 0.0;
@@ -624,41 +625,16 @@ TransportSolver3D<T>::parallelSweepOctant(Octant oct, unsigned int g, SweepFunct
 
     double weight = 0.0;
 
-    unsigned int tid = omp_get_thread_num();
-    const auto n_per_thread = _angular_quad.order(oct) / _num_threads;
-    const auto remainder    = _angular_quad.order(oct) % _num_threads;
-    if (tid == (_num_threads - 1))
-    {
-      for (unsigned int n = n_per_thread * tid; n < _angular_quad.order(oct); ++n)
-      {
-        _angular_quad.direction(oct, n, mu, eta, xi);
-        weight = _angular_quad.weight(oct, n);
+    _angular_quad.direction(oct, n, mu, eta, xi);
+    weight = _angular_quad.weight(oct, n);
 
-        // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-        // if the upwind/downwind directions are aligned properly.
-        abs_mu = std::abs(mu);
-        abs_eta = std::abs(eta);
-        abs_xi = std::abs(xi);
+    // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+    // if the upwind/downwind directions are aligned properly.
+    abs_mu = std::abs(mu);
+    abs_eta = std::abs(eta);
+    abs_xi = std::abs(xi);
 
-        func(abs_mu, abs_eta, abs_xi, weight, n, g, tid);
-      }
-    }
-    else
-    {
-      for (unsigned int n = n_per_thread * tid; n < n_per_thread * (tid + 1); ++n)
-      {
-        _angular_quad.direction(oct, n, mu, eta, xi);
-        weight = _angular_quad.weight(oct, n);
-
-        // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-        // if the upwind/downwind directions are aligned properly.
-        abs_mu = std::abs(mu);
-        abs_eta = std::abs(eta);
-        abs_xi = std::abs(xi);
-
-        func(abs_mu, abs_eta, abs_xi, weight, n, g, tid);
-      }
-    }
+    func(abs_mu, abs_eta, abs_xi, weight, n, g, omp_get_thread_num());
   }
 
   #pragma omp parallel for
