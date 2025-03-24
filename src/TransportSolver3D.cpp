@@ -605,6 +605,20 @@ TransportSolver3D<T>::sweep(unsigned int g)
   parallelSweepOctant(Octant::MMM, g, [this](const auto & abs_mu, const auto & abs_eta, const auto & abs_xi,
                                              const auto & weight, auto ordinate_index, auto g, auto tid)
   { this->sweepMMM(abs_mu, abs_eta, abs_xi, weight, ordinate_index, g, tid); });
+
+  // Accumulate all of the swept flux moments across all threads.
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
+  {
+    auto & cell = _mesh._cells[i];
+
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
+    {
+      cell._current_scalar_flux += cell.getSweptFlux(tid);
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
+    }
+  }
 }
 
 template <typename T>
@@ -635,19 +649,6 @@ TransportSolver3D<T>::parallelSweepOctant(Octant oct, unsigned int g, SweepFunct
     abs_xi = std::abs(xi);
 
     func(abs_mu, abs_eta, abs_xi, weight, n, g, omp_get_thread_num());
-  }
-
-  #pragma omp parallel for
-  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
-  {
-    auto & cell = _mesh._cells[i];
-
-    for (unsigned int tid = 0; tid < _num_threads; ++tid)
-    {
-      cell._current_scalar_flux += cell.getSweptFlux(tid);
-      cell.setSweptFlux(0.0, tid);
-      cell.setAllInterfaceFluxes(0.0, tid);
-    }
   }
 }
 
