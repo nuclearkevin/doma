@@ -1,5 +1,7 @@
 #include "TransportSolver2D.h"
 
+#include "Parallel.h"
+
 template <typename T>
 TransportSolver2D<T>::TransportSolver2D(BrickMesh2D & mesh, const InputParameters & params, bool verbose, unsigned int num_threads)
   : _num_groups(params._num_e_groups),
@@ -139,8 +141,10 @@ template <typename T>
 void
 TransportSolver2D<T>::initZeroIC()
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     cell._total_scalar_flux.resize(_num_groups, 0.0);
@@ -148,10 +152,6 @@ TransportSolver2D<T>::initZeroIC()
     cell._last_t_scalar_flux.resize(_num_groups, 0.0);
     cell._current_t_dnps.resize(p._num_d_groups, 0.0);
     cell._last_t_dnps.resize(p._num_d_groups, 0.0);
-
-    cell._current_iteration_source = 0.0;
-    cell._current_scalar_flux = 0.0;
-    cell._interface_angular_fluxes.fill(0.0);
   }
 }
 
@@ -168,8 +168,10 @@ TransportSolver2D<T>::initSteadyIC()
   if (!res)
     return res;
 
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     // Init DNPs based on the steady-state equation.
@@ -197,7 +199,11 @@ TransportSolver2D<T>::initSteadyIC()
 
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
-    cell._interface_angular_fluxes.fill(0.0);
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
+    {
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
+    }
   }
 
   return res;
@@ -207,16 +213,23 @@ template <typename T>
 void
 TransportSolver2D<T>::updateStepFluxes()
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     for (unsigned int g = 0; g < _num_groups; ++g)
     {
       cell._last_t_scalar_flux[g] = cell._total_scalar_flux[g];
       cell._total_scalar_flux[g] = 0.0;
     }
+
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
-    cell._interface_angular_fluxes.fill(0.0);
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
+    {
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
+    }
   }
 }
 
@@ -224,8 +237,10 @@ template <typename T>
 void
 TransportSolver2D<T>::stepDNPs()
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     for (unsigned int d = 0u; d < p._num_d_groups; ++d)
@@ -306,12 +321,15 @@ TransportSolver2D<T>::computeMGFluxResidual()
 {
   double diff_L2 = 0.0;
   double total_L2 = 0.0;
-  for (auto & cell : _mesh._cells)
+
+  #pragma omp parallel for reduction(+:diff_L2,total_L2)
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    const auto & cell = _mesh._cells[i];
     for (unsigned int g = 0u; g < _num_groups; ++g)
     {
-      diff_L2 += std::pow((cell._total_scalar_flux[g] - cell._prev_mg_scalar_flux[g]), 2.0) * cell._area;
-      total_L2 += std::pow(cell._total_scalar_flux[g], 2.0) * cell._area;
+      diff_L2  = diff_L2 + std::pow((cell._total_scalar_flux[g] - cell._prev_mg_scalar_flux[g]), 2.0) * cell._area;
+      total_L2 = total_L2 + std::pow(cell._total_scalar_flux[g], 2.0) * cell._area;
     }
   }
 
@@ -322,8 +340,10 @@ template <typename T>
 void
 TransportSolver2D<T>::updateMultigroupSource(unsigned int g, double t)
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     cell._current_scalar_flux = 0.0;
@@ -385,8 +405,10 @@ template <typename T>
 void
 TransportSolver2D<T>::updateMultigroupSourceEigen(unsigned int g)
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     cell._current_scalar_flux = 0.0;
@@ -413,16 +435,19 @@ TransportSolver2D<T>::updateEigenvalue()
 {
   double num = 0.0;
   double den = 0.0;
-  for (auto & cell : _mesh._cells)
+
+  #pragma omp parallel for reduction(+:num,den)
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    const auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
     if (p._g_prod.size() == 0u)
       continue;
 
     for (unsigned int g = 0u; g < _num_groups; ++g)
     {
-      num += cell._area * p._g_prod[g] * cell._total_scalar_flux[g];
-      den += cell._area * p._g_prod[g] * cell._prev_mg_scalar_flux[g] / _k;
+      num = num + cell._area * p._g_prod[g] * cell._total_scalar_flux[g];
+      den = den + cell._area * p._g_prod[g] * cell._prev_mg_scalar_flux[g] / _k;
     }
   }
 
@@ -482,8 +507,10 @@ TransportSolver2D<T>::initializeSolve()
     if (_mesh._bcs[i] != BoundaryCondition::Vacuum)
       _mesh._boundary_angular_fluxes[i].resize(_mesh._boundary_cells[i].size() * _angular_quad.totalOrder(), 0.0);
 
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     switch (_mode)
     {
       case RunMode::Eigen: cell._total_scalar_flux.resize(_num_groups, 1.0); break;
@@ -493,7 +520,11 @@ TransportSolver2D<T>::initializeSolve()
 
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
-    cell._interface_angular_fluxes.fill(0.0);
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
+    {
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
+    }
   }
 }
 
@@ -501,15 +532,15 @@ template <typename T>
 void
 TransportSolver2D<T>::updateScatteringSource(unsigned int g)
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     cell._total_scalar_flux[g] += cell._current_scalar_flux;
     cell._current_iteration_source = 0.5 * p._g_g_scatter_mat[g * _num_groups + g] * cell._current_scalar_flux / M_PI;
     cell._current_scalar_flux = 0.0;
-
-    cell._interface_angular_fluxes.fill(0.0);
   }
 }
 
@@ -519,10 +550,13 @@ TransportSolver2D<T>::computeScatteringResidual(unsigned int g)
 {
   double diff_L2 = 0.0;
   double total_L2 = 0.0;
-  for (auto & cell : _mesh._cells)
+
+  #pragma omp parallel for reduction(+:diff_L2,total_L2)
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
-    diff_L2 += std::pow(cell._current_scalar_flux, 2.0) * cell._area;
-    total_L2 += std::pow(cell._total_scalar_flux[g] + cell._current_scalar_flux, 2.0) * cell._area;
+    const auto & cell = _mesh._cells[i];
+    diff_L2  = diff_L2 + std::pow(cell._current_scalar_flux, 2.0) * cell._area;
+    total_L2 = total_L2 + std::pow(cell._total_scalar_flux[g] + cell._current_scalar_flux, 2.0) * cell._area;
   }
 
   return total_L2 > 1e-8 ? std::sqrt(diff_L2) / std::sqrt(total_L2) : 0.0;
@@ -532,93 +566,77 @@ template <typename T>
 void
 TransportSolver2D<T>::sweep(unsigned int g)
 {
-  double mu = 0.0;
-  double eta = 0.0;
-  double xi = 0.0;
-
-  double abs_mu = 0.0;
-  double abs_eta = 0.0;
-  double abs_xi = 0.0;
-
-  double weight = 0.0;
-
   // Sweep +\mu, +\eta, +\xi.
-  {
-    const auto current_oct = Octant::PPP;
-    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
-    {
-      _angular_quad.direction(current_oct, n, mu, eta, xi);
-      weight = _angular_quad.weight(current_oct, n);
-
-      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-      // if the upwind/downwind directions are aligned properly.
-      abs_mu = std::abs(mu);
-      abs_eta = std::abs(eta);
-      abs_xi = std::abs(xi);
-
-      sweepPPP(abs_mu, abs_eta, abs_xi, weight, n, g);
-    }
-  }
+  parallelSweepOctant(Octant::PPP, g, [this](const auto & abs_mu, const auto & abs_eta, const auto & abs_xi,
+                                             const auto & weight, auto ordinate_index, auto g, auto tid)
+  { this->sweepPPP(abs_mu, abs_eta, abs_xi, weight, ordinate_index, g, tid); });
 
   // Sweep +\mu, -\eta, +\xi.
-  {
-    const auto current_oct = Octant::PMP;
-    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
-    {
-      _angular_quad.direction(current_oct, n, mu, eta, xi);
-      weight = _angular_quad.weight(current_oct, n);
-
-      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-      // if the upwind/downwind directions are aligned properly.
-      abs_mu = std::abs(mu);
-      abs_eta = std::abs(eta);
-      abs_xi = std::abs(xi);
-
-      sweepPMP(abs_mu, abs_eta, abs_xi, weight, n, g);
-    }
-  }
+  parallelSweepOctant(Octant::PMP, g, [this](const auto & abs_mu, const auto & abs_eta, const auto & abs_xi,
+                                             const auto & weight, auto ordinate_index, auto g, auto tid)
+  { this->sweepPMP(abs_mu, abs_eta, abs_xi, weight, ordinate_index, g, tid); });
 
   // Sweep -\mu, +\eta, +\xi.
-  {
-    const auto current_oct = Octant::MPP;
-    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
-    {
-      _angular_quad.direction(current_oct, n, mu, eta, xi);
-      weight = _angular_quad.weight(current_oct, n);
-
-      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-      // if the upwind/downwind directions are aligned properly.
-      abs_mu = std::abs(mu);
-      abs_eta = std::abs(eta);
-      abs_xi = std::abs(xi);
-
-      sweepMPP(abs_mu, abs_eta, abs_xi, weight, n, g);
-    }
-  }
+  parallelSweepOctant(Octant::MPP, g, [this](const auto & abs_mu, const auto & abs_eta, const auto & abs_xi,
+                                             const auto & weight, auto ordinate_index, auto g, auto tid)
+  { this->sweepMPP(abs_mu, abs_eta, abs_xi, weight, ordinate_index, g, tid); });
 
   // Sweep -\mu, -\eta, +\xi.
+  parallelSweepOctant(Octant::MMP, g, [this](const auto & abs_mu, const auto & abs_eta, const auto & abs_xi,
+                                             const auto & weight, auto ordinate_index, auto g, auto tid)
+  { this->sweepMMP(abs_mu, abs_eta, abs_xi, weight, ordinate_index, g, tid); });
+
+  // Accumulate all of the swept flux moments across all threads.
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
-    const auto current_oct = Octant::MMP;
-    for (unsigned int n = 0u; n < _angular_quad.order(current_oct); ++n)
+    auto & cell = _mesh._cells[i];
+
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
     {
-      _angular_quad.direction(current_oct, n, mu, eta, xi);
-      weight = _angular_quad.weight(current_oct, n);
-
-      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-      // if the upwind/downwind directions are aligned properly.
-      abs_mu = std::abs(mu);
-      abs_eta = std::abs(eta);
-      abs_xi = std::abs(xi);
-
-      sweepMMP(abs_mu, abs_eta, abs_xi, weight, n, g);
+      cell._current_scalar_flux += cell.getSweptFlux(tid);
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
     }
+  }
+}
+
+template <typename T>
+template <typename SweepFunction>
+void
+TransportSolver2D<T>::parallelSweepOctant(Octant oct, unsigned int g, SweepFunction func)
+{
+  #pragma omp parallel for
+  for (unsigned int n = 0; n < _angular_quad.order(oct); ++n)
+  {
+    double mu = 0.0;
+    double eta = 0.0;
+    double xi = 0.0;
+
+    double abs_mu = 0.0;
+    double abs_eta = 0.0;
+    double abs_xi = 0.0;
+
+    double weight = 0.0;
+
+    _angular_quad.direction(oct, n, mu, eta, xi);
+    weight = _angular_quad.weight(oct, n);
+
+    // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+    // if the upwind/downwind directions are aligned properly.
+    abs_mu = std::abs(mu);
+    abs_eta = std::abs(eta);
+    abs_xi = std::abs(xi);
+
+    func(abs_mu, abs_eta, abs_xi, weight, n, g, omp_get_thread_num());
   }
 }
 
 template <typename T>
 void
 TransportSolver2D<T>::sweepPPP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                               const double & weight, unsigned int ordinate_index, unsigned int g)
+                               const double & weight, unsigned int ordinate_index, unsigned int g,
+                               unsigned int tid)
 {
   // Y second.
   for (unsigned int column = 0u; column < _mesh._tot_num_y; ++column)
@@ -630,7 +648,7 @@ TransportSolver2D<T>::sweepPPP(const double & abs_mu, const double & abs_eta, co
       _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                        CertesianFaceSide::Left, CertesianFaceSide::Right,  // x
                        CertesianFaceSide::Back, CertesianFaceSide::Front,
-                       _mode, _dt); // z
+                       tid, _mode, _dt); // z
     }
   }
 }
@@ -638,7 +656,8 @@ TransportSolver2D<T>::sweepPPP(const double & abs_mu, const double & abs_eta, co
 template <typename T>
 void
 TransportSolver2D<T>::sweepPMP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                               const double & weight, unsigned int ordinate_index, unsigned int g)
+                               const double & weight, unsigned int ordinate_index, unsigned int g,
+                               unsigned int tid)
 {
   unsigned int column;
   // Y second.
@@ -652,7 +671,7 @@ TransportSolver2D<T>::sweepPMP(const double & abs_mu, const double & abs_eta, co
       _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                        CertesianFaceSide::Left, CertesianFaceSide::Right,  // x
                        CertesianFaceSide::Front, CertesianFaceSide::Back,
-                       _mode, _dt); // z
+                       tid, _mode, _dt); // z
     }
   }
 }
@@ -660,7 +679,8 @@ TransportSolver2D<T>::sweepPMP(const double & abs_mu, const double & abs_eta, co
 template <typename T>
 void
 TransportSolver2D<T>::sweepMPP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                               const double & weight, unsigned int ordinate_index, unsigned int g)
+                               const double & weight, unsigned int ordinate_index, unsigned int g,
+                               unsigned int tid)
 {
   unsigned int row;
   // Y second.
@@ -674,7 +694,7 @@ TransportSolver2D<T>::sweepMPP(const double & abs_mu, const double & abs_eta, co
       _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                        CertesianFaceSide::Right, CertesianFaceSide::Left,  // x
                        CertesianFaceSide::Back, CertesianFaceSide::Front,
-                       _mode, _dt); // z
+                       tid, _mode, _dt); // z
     }
   }
 }
@@ -682,7 +702,8 @@ TransportSolver2D<T>::sweepMPP(const double & abs_mu, const double & abs_eta, co
 template <typename T>
 void
 TransportSolver2D<T>::sweepMMP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                               const double & weight, unsigned int ordinate_index, unsigned int g)
+                               const double & weight, unsigned int ordinate_index, unsigned int g,
+                               unsigned int tid)
 {
   unsigned int column;
   unsigned int row;
@@ -698,7 +719,7 @@ TransportSolver2D<T>::sweepMMP(const double & abs_mu, const double & abs_eta, co
       _eq_system.solve(cell, weight, abs_mu, abs_eta, abs_xi, ordinate_index, g,
                        CertesianFaceSide::Right, CertesianFaceSide::Left,  // x
                        CertesianFaceSide::Front, CertesianFaceSide::Back,
-                       _mode, _dt); // z
+                       tid, _mode, _dt); // z
     }
   }
 }
