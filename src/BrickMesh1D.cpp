@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <limits>
 
-BrickMesh1D::BrickMesh1D(const InputParameters & params, const std::array<BoundaryCondition, 2u> & bcs)
+BrickMesh1D::BrickMesh1D(const InputParameters & params, const std::array<BoundaryCondition, 2u> & bcs, unsigned int num_threads)
   : _nx(params._x_intervals),
     _tot_num_x(0u),
     _num_groups(1u),
@@ -15,7 +15,8 @@ BrickMesh1D::BrickMesh1D(const InputParameters & params, const std::array<Bounda
     _total_length(0.0),
     _bcs(bcs),
     _block_mat_info(params._block_mat_info),
-    _block_step_src(params._block_step_src)
+    _block_step_src(params._block_step_src),
+    _num_threads(num_threads)
 {
   if (_nx.size() != _blocks.size())
   {
@@ -77,6 +78,15 @@ BrickMesh1D::BrickMesh1D(const InputParameters & params, const std::array<Bounda
     }
     else
       cell.addNeighbor(&_cells[i + 1u], CertesianFaceSide::Right);
+  }
+
+  // Resize the data structures that store the fluxes during the sweep.
+  _swept_scalar_flux.resize(_num_threads);
+  _interface_angular_fluxes.resize(_num_threads);
+  for (unsigned int tid = 0; tid < _num_threads; ++tid)
+  {
+    _swept_scalar_flux[tid].resize(_cells.size(), 0.0);
+    _interface_angular_fluxes[tid].resize(_cells.size(), {0.0, 0.0});
   }
 }
 

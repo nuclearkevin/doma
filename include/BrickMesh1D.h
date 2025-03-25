@@ -14,7 +14,7 @@ class TransportSolver1D;
 class BrickMesh1D
 {
 public:
-  BrickMesh1D(const InputParameters & params, const std::array<BoundaryCondition, 2u> & bcs);
+  BrickMesh1D(const InputParameters & params, const std::array<BoundaryCondition, 2u> & bcs, unsigned int num_threads);
 
   // Make sure each block has material properties.
   void validateProps();
@@ -81,4 +81,13 @@ private:
 
   // Source step transients for this mesh.
   const std::unordered_map<unsigned int, SourceStep> & _block_step_src;
+
+  // The number of OpenMP threads to use.
+  const unsigned int _num_threads;
+
+  // Data structures that store the scalar flux as it's being swept.
+  std::vector<std::vector<double>> _swept_scalar_flux;
+  // The interface angular fluxes. Downwind fluxes are computed by the cell, upwind fluxes are pulled from neighboring cells.
+  // Organized in the following order: Front, Back, Right, Left.
+  std::vector<std::vector<std::array<double, 2>>> _interface_angular_fluxes;
 }; // class BrickMesh1D

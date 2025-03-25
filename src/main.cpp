@@ -42,8 +42,9 @@ main(int argc, char** argv)
 
   auto inp_path = std::filesystem::path(args.get<std::string>("--input_file"));
   const auto params = parseInputParameters(inp_path.string());
+  const int threads = args.get<int>("--n-threads");
 
-  omp_set_num_threads(args.get<int>("--n-threads"));
+  omp_set_num_threads(threads);
 
   auto start = std::chrono::high_resolution_clock::now();
 
@@ -51,12 +52,12 @@ main(int argc, char** argv)
   {
     std::array<BoundaryCondition, 2u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
 
-    auto mesh = BrickMesh1D(params, boundary_conditions);
+    auto mesh = BrickMesh1D(params, boundary_conditions, threads);
     mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)
     {
-      DDTransportSolver1D solver(mesh, params, args.get<bool>("--verbose"), args.get<int>("--n-threads"));
+      DDTransportSolver1D solver(mesh, params, args.get<bool>("--verbose"), threads);
       if (params._mode == RunMode::FixedSrc)
       {
         if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
@@ -107,12 +108,12 @@ main(int argc, char** argv)
     std::array<BoundaryCondition, 4u> boundary_conditions = { BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
 
-    auto mesh = BrickMesh2D(params, boundary_conditions, args.get<int>("--n-threads"));
+    auto mesh = BrickMesh2D(params, boundary_conditions, threads);
     mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)
     {
-      DDTransportSolver2D solver(mesh, params, args.get<bool>("--verbose"), args.get<int>("--n-threads"));
+      DDTransportSolver2D solver(mesh, params, args.get<bool>("--verbose"), threads);
       if (params._mode == RunMode::FixedSrc)
       {
         if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
@@ -154,7 +155,7 @@ main(int argc, char** argv)
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      TWDDTransportSolver2D solver(mesh, params, args.get<bool>("--verbose"), args.get<int>("--n-threads"));
+      TWDDTransportSolver2D solver(mesh, params, args.get<bool>("--verbose"), threads);
       if (params._mode == RunMode::FixedSrc)
       {
         if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
@@ -201,12 +202,12 @@ main(int argc, char** argv)
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum,
                                                               BoundaryCondition::Vacuum, BoundaryCondition::Vacuum };
 
-    auto mesh = BrickMesh3D(params, boundary_conditions, args.get<int>("--n-threads"));
+    auto mesh = BrickMesh3D(params, boundary_conditions, threads);
     mesh.validateProps();
 
     if (params._eq_type == EquationType::DD)
     {
-      DDTransportSolver3D solver(mesh, params, args.get<bool>("--verbose"), args.get<int>("--n-threads"));
+      DDTransportSolver3D solver(mesh, params, args.get<bool>("--verbose"), threads);
       if (params._mode == RunMode::FixedSrc)
       {
         if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))
@@ -248,7 +249,7 @@ main(int argc, char** argv)
     }
     else if (params._eq_type == EquationType::TW_DD)
     {
-      TWDDTransportSolver3D solver(mesh, params, args.get<bool>("--verbose"), args.get<int>("--n-threads"));
+      TWDDTransportSolver3D solver(mesh, params, args.get<bool>("--verbose"), threads);
       if (params._mode == RunMode::FixedSrc)
       {
         if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))

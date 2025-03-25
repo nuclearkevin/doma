@@ -21,11 +21,14 @@ public:
   void addNeighbor(const CartesianCell1D * cell, CertesianFaceSide side);
 
   // Helper to fetch the interface flux.
-  const double & interfaceFlux(CertesianFaceSide side) const { return _interface_angular_fluxes[static_cast<unsigned int>(side)]; }
-  void setInterfaceFlux(CertesianFaceSide side, const double & val)
-  {
-    _interface_angular_fluxes[static_cast<unsigned int>(side)] = val;
-  }
+  const double & interfaceFlux(CertesianFaceSide side, unsigned int tid) const;
+  void setInterfaceFlux(CertesianFaceSide side, const double & val, unsigned int tid);
+  void setAllInterfaceFluxes(const double & val, unsigned int tid);
+
+  // Helper functions to get or modify the swept scalar flux.
+  void accumulateSweptFlux(const double & val, unsigned int tid);
+  void setSweptFlux(const double & val, unsigned int tid);
+  double getSweptFlux(unsigned int tid) const;
 
   // Helper to fetch BCs.
   double boundaryFlux(CertesianFaceSide side, unsigned int ordinate_index);
@@ -79,10 +82,6 @@ protected:
 
   // The mesh which owns this cell.
   BrickMesh1D * _parent_mesh;
-
-  // The interface angular fluxes. Downwind fluxes are computed by the cell, upwind fluxes are pulled from neighboring cells.
-  // Organized in the following order: Front, Back, Right, Left.
-  std::array<double, 2u> _interface_angular_fluxes;
 
   // A list of neighboring cells. Organized in the following order: Front, Back.
   std::array<const CartesianCell1D *, 2u> _neighbors;

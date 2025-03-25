@@ -75,9 +75,9 @@ private:
 
   // Individual sweeping functions for each octant.
   void sweepR(const double & abs_mu, const double & weight, unsigned int ordinate_index,
-              unsigned int g);
+              unsigned int g, unsigned int tid);
   void sweepL(const double & abs_mu, const double & weight, unsigned int ordinate_index,
-              unsigned int g);
+              unsigned int g, unsigned int tid);
 
   // Number of neutron energy groups.
   const unsigned int _num_groups;
