@@ -11,7 +11,6 @@ CartesianCell1D::CartesianCell1D(const double & lx, const double & x_center, uns
     _current_iteration_source(0.0),
     _current_scalar_flux(0.0),
     _parent_mesh(parent_mesh),
-    _interface_angular_fluxes({0.0, 0.0}),
     _neighbors({nullptr, nullptr})
 { }
 
@@ -54,4 +53,40 @@ bool
 CartesianCell1D::pointInCell(const double & x) const
 {
   return ((_x_c - (0.5 * _l_x)) <= x && (_x_c + (0.5 * _l_x)) >= x);
+}
+
+const double &
+CartesianCell1D::interfaceFlux(CertesianFaceSide side, unsigned int tid) const
+{
+  return _parent_mesh->_interface_angular_fluxes[tid][_cell_id][static_cast<unsigned int>(side)];
+}
+
+void
+CartesianCell1D::setInterfaceFlux(CertesianFaceSide side, const double & val, unsigned int tid)
+{
+  _parent_mesh->_interface_angular_fluxes[tid][_cell_id][static_cast<unsigned int>(side)] = val;
+}
+
+void
+CartesianCell1D::setAllInterfaceFluxes(const double & val, unsigned int tid)
+{
+  _parent_mesh->_interface_angular_fluxes[tid][_cell_id].fill(val);
+}
+
+void
+CartesianCell1D::accumulateSweptFlux(const double & val, unsigned int tid)
+{
+  _parent_mesh->_swept_scalar_flux[tid][_cell_id] += val;
+}
+
+void
+CartesianCell1D::setSweptFlux(const double & val, unsigned int tid)
+{
+  _parent_mesh->_swept_scalar_flux[tid][_cell_id] = val;
+}
+
+double
+CartesianCell1D::getSweptFlux(unsigned int tid) const
+{
+  return _parent_mesh->_swept_scalar_flux[tid][_cell_id];
 }

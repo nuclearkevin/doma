@@ -1,7 +1,9 @@
 #include "TransportSolver1D.h"
 
+#include "Parallel.h"
+
 template <typename T>
-TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameters & params, bool verbose)
+TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameters & params, bool verbose, unsigned int num_threads)
   : _num_groups(params._num_e_groups),
     _mode(params._mode),
     _mesh(mesh),
@@ -18,7 +20,8 @@ TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameter
     _t0(params._t0),
     _dt((params._t1 - params._t0) / static_cast<double>(params._num_steps)),
     _t_steps(params._num_steps),
-    _ic(params._ic)
+    _ic(params._ic),
+    _num_threads(num_threads)
 {
   _mesh._num_groups = _num_groups;
 }
@@ -37,7 +40,7 @@ TransportSolver1D<T>::solveEigenvalue(const std::string & output_file_base)
   {
     std::cout << "Performing PI " << mg_iteration;
     if (mg_iteration != 0u)
-      std::cout <<  ", shape residual = " << current_shape_residual
+      std::cout << ", shape residual = " << current_shape_residual
                 << ", k residual = " << current_k_diff << std::endl
                 << "k = " << _k << std::endl;
     else
@@ -138,8 +141,10 @@ template <typename T>
 void
 TransportSolver1D<T>::initZeroIC()
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     cell._total_scalar_flux.resize(_num_groups, 0.0);
@@ -147,10 +152,6 @@ TransportSolver1D<T>::initZeroIC()
     cell._last_t_scalar_flux.resize(_num_groups, 0.0);
     cell._current_t_dnps.resize(p._num_d_groups, 0.0);
     cell._last_t_dnps.resize(p._num_d_groups, 0.0);
-
-    cell._current_iteration_source = 0.0;
-    cell._current_scalar_flux = 0.0;
-    cell._interface_angular_fluxes.fill(0.0);
   }
 }
 
@@ -167,8 +168,10 @@ TransportSolver1D<T>::initSteadyIC()
   if (!res)
     return res;
 
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     // Init DNPs based on the steady-state equation.
@@ -196,7 +199,11 @@ TransportSolver1D<T>::initSteadyIC()
 
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
-    cell._interface_angular_fluxes.fill(0.0);
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
+    {
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
+    }
   }
 
   return res;
@@ -206,16 +213,23 @@ template <typename T>
 void
 TransportSolver1D<T>::updateStepFluxes()
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     for (unsigned int g = 0; g < _num_groups; ++g)
     {
       cell._last_t_scalar_flux[g] = cell._total_scalar_flux[g];
       cell._total_scalar_flux[g] = 0.0;
     }
+
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
-    cell._interface_angular_fluxes.fill(0.0);
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
+    {
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
+    }
   }
 }
 
@@ -223,8 +237,10 @@ template <typename T>
 void
 TransportSolver1D<T>::stepDNPs()
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     for (unsigned int d = 0u; d < p._num_d_groups; ++d)
@@ -305,12 +321,15 @@ TransportSolver1D<T>::computeMGFluxResidual()
 {
   double diff_L2 = 0.0;
   double total_L2 = 0.0;
-  for (auto & cell : _mesh._cells)
+
+  #pragma omp parallel for reduction(+:diff_L2,total_L2)
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    const auto & cell = _mesh._cells[i];
     for (unsigned int g = 0u; g < _num_groups; ++g)
     {
-      diff_L2 += std::pow((cell._total_scalar_flux[g] - cell._prev_mg_scalar_flux[g]), 2.0) * cell._l_x;
-      total_L2 += std::pow(cell._total_scalar_flux[g], 2.0) * cell._l_x;
+      diff_L2  = diff_L2 + std::pow((cell._total_scalar_flux[g] - cell._prev_mg_scalar_flux[g]), 2.0) * cell._l_x;
+      total_L2 = total_L2 + std::pow(cell._total_scalar_flux[g], 2.0) * cell._l_x;
     }
   }
 
@@ -321,8 +340,10 @@ template <typename T>
 void
 TransportSolver1D<T>::updateMultigroupSource(unsigned int g, double t)
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     cell._current_scalar_flux = 0.0;
@@ -384,8 +405,10 @@ template <typename T>
 void
 TransportSolver1D<T>::updateMultigroupSourceEigen(unsigned int g)
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     cell._current_scalar_flux = 0.0;
@@ -412,16 +435,19 @@ TransportSolver1D<T>::updateEigenvalue()
 {
   double num = 0.0;
   double den = 0.0;
-  for (auto & cell : _mesh._cells)
+
+  #pragma omp parallel for reduction(+:num,den)
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    const auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
     if (p._g_prod.size() == 0u)
       continue;
 
     for (unsigned int g = 0u; g < _num_groups; ++g)
     {
-      num += cell._l_x * p._g_prod[g] * cell._total_scalar_flux[g];
-      den += cell._l_x * p._g_prod[g] * cell._prev_mg_scalar_flux[g] / _k;
+      num = num + cell._l_x * p._g_prod[g] * cell._total_scalar_flux[g];
+      den = den + cell._l_x * p._g_prod[g] * cell._prev_mg_scalar_flux[g] / _k;
     }
   }
 
@@ -481,8 +507,10 @@ TransportSolver1D<T>::initializeSolve()
     if (_mesh._bcs[i] != BoundaryCondition::Vacuum)
       _mesh._boundary_angular_fluxes[i].resize(_mesh._boundary_cells[i].size() * _angular_quad.order(), 0.0);
 
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     switch (_mode)
     {
       case RunMode::Eigen: cell._total_scalar_flux.resize(_num_groups, 1.0); break;
@@ -492,7 +520,11 @@ TransportSolver1D<T>::initializeSolve()
 
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
-    cell._interface_angular_fluxes.fill(0.0);
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
+    {
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
+    }
   }
 }
 
@@ -500,15 +532,15 @@ template <typename T>
 void
 TransportSolver1D<T>::updateScatteringSource(unsigned int g)
 {
-  for (auto & cell : _mesh._cells)
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
+    auto & cell = _mesh._cells[i];
     const auto & p = cell.getMatProps();
 
     cell._total_scalar_flux[g] += cell._current_scalar_flux;
     cell._current_iteration_source = 0.5 * p._g_g_scatter_mat[g * _num_groups + g] * cell._current_scalar_flux;
     cell._current_scalar_flux = 0.0;
-
-    cell._interface_angular_fluxes.fill(0.0);
   }
 }
 
@@ -518,10 +550,13 @@ TransportSolver1D<T>::computeScatteringResidual(unsigned int g)
 {
   double diff_L2 = 0.0;
   double total_L2 = 0.0;
-  for (auto & cell : _mesh._cells)
+
+  #pragma omp parallel for reduction(+:diff_L2,total_L2)
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
   {
-    diff_L2 += std::pow(cell._current_scalar_flux, 2.0) * cell._l_x;
-    total_L2 += std::pow(cell._total_scalar_flux[g] + cell._current_scalar_flux, 2.0) * cell._l_x;
+    const auto & cell = _mesh._cells[i];
+    diff_L2  = diff_L2 + std::pow(cell._current_scalar_flux, 2.0) * cell._l_x;
+    total_L2 = total_L2 + std::pow(cell._total_scalar_flux[g] + cell._current_scalar_flux, 2.0) * cell._l_x;
   }
 
   return total_L2 > 1e-8 ? std::sqrt(diff_L2) / std::sqrt(total_L2) : 0.0;
@@ -531,37 +566,35 @@ template <typename T>
 void
 TransportSolver1D<T>::sweep(unsigned int g)
 {
-  double mu = 0.0;
-  double abs_mu = 0.0;
-  double weight = 0.0;
-
   // Sweep +\mu.
+  #pragma omp parallel for
+  for (unsigned int n = 0u; n < _angular_quad.order() / 2u; ++n)
   {
-    for (unsigned int n = 0u; n < _angular_quad.order() / 2u; ++n)
-    {
-      mu = _angular_quad.direction(n);
-      weight = _angular_quad.weight(n);
-
-      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-      // if the upwind/downwind directions are aligned properly.
-      abs_mu = std::abs(mu);
-
-      sweepR(abs_mu, weight, n, g);
-    }
+    // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+    // if the upwind/downwind directions are aligned properly.
+    sweepR(std::abs(_angular_quad.direction(n)), _angular_quad.weight(n), n, g, omp_get_thread_num());
   }
 
   // Sweep -\mu.
+  #pragma omp parallel for
+  for (unsigned int n = _angular_quad.order() / 2u; n < _angular_quad.order(); ++n)
   {
-    for (unsigned int n = _angular_quad.order() / 2u; n < _angular_quad.order(); ++n)
+    // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
+    // if the upwind/downwind directions are aligned properly.
+    sweepL(std::abs(_angular_quad.direction(n)), _angular_quad.weight(n), n, g, omp_get_thread_num());
+  }
+
+  // Accumulate all of the swept flux moments across all threads.
+  #pragma omp parallel for
+  for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
+  {
+    auto & cell = _mesh._cells[i];
+
+    for (unsigned int tid = 0; tid < _num_threads; ++tid)
     {
-      mu = _angular_quad.direction(n);
-      weight = _angular_quad.weight(n);
-
-      // We use the absolute value of each ordinate as the system of equations ends up being symmetrical
-      // if the upwind/downwind directions are aligned properly.
-      abs_mu = std::abs(mu);
-
-      sweepL(abs_mu, weight, n, g);
+      cell._current_scalar_flux += cell.getSweptFlux(tid);
+      cell.setSweptFlux(0.0, tid);
+      cell.setAllInterfaceFluxes(0.0, tid);
     }
   }
 }
@@ -569,27 +602,27 @@ TransportSolver1D<T>::sweep(unsigned int g)
 template <typename T>
 void
 TransportSolver1D<T>::sweepR(const double & abs_mu, const double & weight,
-                             unsigned int ordinate_index, unsigned int g)
+                             unsigned int ordinate_index, unsigned int g, unsigned int tid)
 {
   for (unsigned int row = 0u; row < _mesh._tot_num_x; ++row)
   {
     auto & cell = _mesh._cells[row];
     _eq_system.solve(cell, weight, abs_mu, ordinate_index, g,
-                     CertesianFaceSide::Left, CertesianFaceSide::Right);
+                     CertesianFaceSide::Left, CertesianFaceSide::Right, tid);
   }
 }
 
 template <typename T>
 void
 TransportSolver1D<T>::sweepL(const double & abs_mu, const double & weight,
-                             unsigned int ordinate_index, unsigned int g)
+                             unsigned int ordinate_index, unsigned int g, unsigned int tid)
 {
   unsigned int row = _mesh._tot_num_x;
   while (row --> 0)
   {
     auto & cell =_mesh._cells[row];
     _eq_system.solve(cell, weight, abs_mu, ordinate_index, g,
-                     CertesianFaceSide::Right, CertesianFaceSide::Left);
+                     CertesianFaceSide::Right, CertesianFaceSide::Left, tid);
   }
 }
 

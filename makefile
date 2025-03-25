@@ -1,4 +1,4 @@
-COMPILE_FLAGS := g++ -O2 -std=c++17 -I ./include -I ./contrib/pugixml/src -I ./contrib/argparse/include
+COMPILE_FLAGS := g++ -O2 -std=c++17 -fopenmp -I ./include -I ./contrib/pugixml/src -I ./contrib/argparse/include
 
 makebuild: dir pugi doma
 
@@ -17,7 +17,7 @@ pugi: ${PUGI_OBJECTS}
 
 doma: $(OBJECTS)
 	@echo Linking...
-	g++ -o ./doma ${PUGI_OBJECTS} $^
+	g++ -fopenmp -o ./doma ${PUGI_OBJECTS} $^
 
 ./bin/%.o: ./src/%.cpp
 	@echo Compiling $< ...

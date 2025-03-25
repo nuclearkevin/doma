@@ -23,7 +23,7 @@ template <typename T>
 class TransportSolver2D
 {
 public:
-  TransportSolver2D(BrickMesh2D & mesh, const InputParameters & params, bool verbose);
+  TransportSolver2D(BrickMesh2D & mesh, const InputParameters & params, bool verbose, unsigned int num_threads);
 
   // Solve the subcritical multiplication fixed source problem.
   bool solveFixedSource(const std::string & output_file_base = "", const double & t = 0.0);
@@ -76,15 +76,23 @@ private:
   // Invert the streaming and collision operator with a sweep.
   void sweep(unsigned int g);
 
+  // A templated function to implement parallel-in-angle sweeps.
+  template <typename SweepFunction>
+  void parallelSweepOctant(Octant oct, unsigned int g, SweepFunction func);
+
   // Individual sweeping functions for each octant.
   void sweepPPP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index, unsigned int g);
+                const double & weight, unsigned int ordinate_index, unsigned int g,
+                unsigned int tid);
   void sweepPMP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index, unsigned int g);
+                const double & weight, unsigned int ordinate_index, unsigned int g,
+                unsigned int tid);
   void sweepMPP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index, unsigned int g);
+                const double & weight, unsigned int ordinate_index, unsigned int g,
+                unsigned int tid);
   void sweepMMP(const double & abs_mu, const double & abs_eta, const double & abs_xi,
-                const double & weight, unsigned int ordinate_index, unsigned int g);
+                const double & weight, unsigned int ordinate_index, unsigned int g,
+                unsigned int tid);
 
   // Number of neutron energy groups.
   const unsigned int _num_groups;
@@ -130,6 +138,9 @@ private:
 
   // The initial condition type (if running a transient solve).
   const TransientIC _ic;
+
+  // The number of OpenMP threads to use.
+  const unsigned int _num_threads;
 }; // class TransportSolver
 
 extern template class TransportSolver2D<TWDiamondDifference2D>;
