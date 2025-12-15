@@ -1,4 +1,4 @@
-COMPILE_FLAGS := g++ -O2 -std=c++17 -fopenmp -I ./include -I ./contrib/pugixml/src -I ./contrib/argparse/include
+COMPILE_FLAGS := g++ -O2 -std=c++17 -fopenmp -I ./include -I ./contrib/pugixml/src -I ./contrib/argparse/include -I ./contrib/eigen
 
 makebuild: dir pugi doma
 
