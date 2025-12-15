@@ -4,3 +4,6 @@
 [submodule "contrib/argparse"]
 	path = contrib/argparse
 	url = https://github.com/p-ranav/argparse.git
+[submodule "contrib/eigen"]
+	path = contrib/eigen
+	url = https://gitlab.com/libeigen/eigen.git
