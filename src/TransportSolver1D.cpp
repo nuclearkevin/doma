@@ -600,9 +600,12 @@ TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
   // Matrix interior is different between schemes. Boundary conditions are the same.
   switch (_mode)
   {
-    // For eigenvalue calculations, we use the diffusion correction scheme.
+    // For eigenvalue calculations, we use the diffusion correction scheme unless it fails.
+    // If it does we switch to removal correction.
     case RunMode::Eigen:
     {
+      bool swap_to_removal = false;
+
       for (unsigned int i = 0; i < _mesh._cells.size() - 1; ++i)
       {
         // Current cell at i.
@@ -625,6 +628,14 @@ TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
         D_i_1 /= (c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
                   - c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)]);
 
+        // If negative diffusion coefficients are encountered, exit early and use
+        // the removal correction.
+        if (D_i <= 0.0 || D_i_1 <= 0.0)
+        {
+          swap_to_removal = true;
+          break;
+        }
+
         // Eq. 23a
         double sigma_r_half = (p_i._g_total[g] - p_i._g_g_scatter_mat[g_prime]) * c_i._l_x * c_i._current_scalar_flux;
         sigma_r_half += (p_i_1._g_total[g] - p_i_1._g_g_scatter_mat[g_prime]) * c_i_1._l_x * c_i_1._current_scalar_flux;
@@ -639,6 +650,52 @@ TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
         const double qqh = (c_i._mg_source * c_i._l_x + c_i_1._mg_source * c_i_1._l_x);
         _diffusion_src_vec(m_half) = qqh;
       }
+
+      if (swap_to_removal)
+      {
+        _diffusion_mat_entries.clear();
+        _diffusion_mat.setZero();
+
+        for (unsigned int i = 0; i < _mesh._cells.size() - 1; ++i)
+        {
+          // Current cell at i.
+          const auto & c_i   = _mesh._cells[i];
+          const auto & p_i   = c_i.getMatProps();
+          // Neighboring cell at i + 1.
+          const auto & c_i_1 = _mesh._cells[i + 1];
+          const auto & p_i_1 = c_i_1.getMatProps();
+
+          const unsigned int l_half = i;     // Left side of the tridiagonal
+          const unsigned int m_half = i + 1; // Center of the tridiagonal.
+          const unsigned int r_half = i + 2; // Right side of the tridiagonal.
+
+          // Eqs. 21 and 23 (diffusion coefficients divided by h).
+          const double Dh_i   = 1.0 / 3.0 / p_i._g_total[g] / c_i._l_x;
+          const double Dh_i_1 = 1.0 / 3.0 / p_i_1._g_total[g] / c_i_1._l_x;
+          // Eq. 23a
+          double sigma_r_half = (p_i._g_total[g] - p_i._g_g_scatter_mat[g_prime]) * c_i._l_x * c_i._current_scalar_flux;
+          sigma_r_half += (p_i_1._g_total[g] - p_i_1._g_g_scatter_mat[g_prime]) * c_i_1._l_x * c_i_1._current_scalar_flux;
+          sigma_r_half *= 0.5 / c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)];
+
+          // Removal correction term.
+          double removal_corr = c_i_1._current_current - c_i._current_current;
+          removal_corr += Dh_i_1 * (c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
+                                    - c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)]);
+          removal_corr -= Dh_i * (c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
+                                  - c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)]);
+          removal_corr /= c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)];
+
+          // Diffusion correction matrix.
+          _diffusion_mat_entries.push_back(Eigen::Triplet<double>(m_half, l_half, -1.0 * Dh_i));
+          _diffusion_mat_entries.push_back(Eigen::Triplet<double>(m_half, m_half, Dh_i + Dh_i_1 + sigma_r_half + removal_corr));
+          _diffusion_mat_entries.push_back(Eigen::Triplet<double>(m_half, r_half, -1.0 * Dh_i_1));
+
+          // Eq. 23b. The source pre-multiplies by 0.5.
+          const double qqh = (c_i._mg_source * c_i._l_x + c_i_1._mg_source * c_i_1._l_x);
+          _diffusion_src_vec(m_half) = qqh;
+        }
+      }
+
       break;
     }
     // For fixed source calculations, we use the source correction scheme.
@@ -676,9 +733,9 @@ TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
 
         // Eq. 22 (DSA source correction).
         double r = c_i_1._current_current - c_i._current_current;
-        r += Dh_i * (c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
-                   - c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]);
-        r -= Dh_i_1 * (c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
+        r += Dh_i_1 * (c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
+                       - c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)]);
+        r -= Dh_i * (c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
                      - c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)]);
         _diffusion_src_vec(m_half) = qqh + r;
       }
