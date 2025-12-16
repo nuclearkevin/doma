@@ -88,6 +88,12 @@ private:
   // Data structures that store the scalar flux as it's being swept.
   std::vector<std::vector<double>> _swept_scalar_flux;
   // The interface angular fluxes. Downwind fluxes are computed by the cell, upwind fluxes are pulled from neighboring cells.
-  // Organized in the following order: Front, Back, Right, Left.
+  // Organized in the following order: Right, Left.
   std::vector<std::vector<std::array<double, 2>>> _interface_angular_fluxes;
+
+  // For diffusion synthetic acceleration.
+  // The scalar fluxes on an interface between two cells.
+  std::vector<std::vector<double>> _interface_scalar_fluxes;
+  // The net currents in a cell.
+  std::vector<std::vector<double>> _swept_net_current;
 }; // class BrickMesh1D

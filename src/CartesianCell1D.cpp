@@ -8,8 +8,11 @@ CartesianCell1D::CartesianCell1D(const double & lx, const double & x_center, uns
     _block_id(block_id),
     _x_c(std::move(x_center)),
     _l_x(std::move(lx)),
+    _mg_source(0.0),
     _current_iteration_source(0.0),
     _current_scalar_flux(0.0),
+    _current_current(0.0),
+    _current_interface_sf({0.0, 0.0}),
     _parent_mesh(parent_mesh),
     _neighbors({nullptr, nullptr})
 { }
@@ -89,4 +92,43 @@ double
 CartesianCell1D::getSweptFlux(unsigned int tid) const
 {
   return _parent_mesh->_swept_scalar_flux[tid][_cell_id];
+}
+
+void
+CartesianCell1D::accumulateSweptCurrent(const double & val, unsigned int tid)
+{
+  _parent_mesh->_swept_net_current[tid][_cell_id] += val;
+}
+
+void
+CartesianCell1D::setSweptCurrent(const double & val, unsigned int tid)
+{
+  _parent_mesh->_swept_net_current[tid][_cell_id] = val;
+}
+
+double
+CartesianCell1D::getSweptCurrent(unsigned int tid)
+{
+  return _parent_mesh->_swept_net_current[tid][_cell_id];
+}
+
+void
+CartesianCell1D::accumulateSweptInterfaceSF(const double & val, CertesianFaceSide side, unsigned int tid)
+{
+  const unsigned int side_offset = side == CertesianFaceSide::Right ? 1 : 0;
+  _parent_mesh->_interface_scalar_fluxes[tid][_cell_id + side_offset] += val;
+}
+
+void
+CartesianCell1D::setSweptInterfaceSF(const double & val, CertesianFaceSide side, unsigned int tid)
+{
+  const unsigned int side_offset = side == CertesianFaceSide::Right ? 1 : 0;
+  _parent_mesh->_interface_scalar_fluxes[tid][_cell_id + side_offset] = val;
+}
+
+double
+CartesianCell1D::getSweptInterfaceSF(CertesianFaceSide side, unsigned int tid)
+{
+  const unsigned int side_offset = side == CertesianFaceSide::Right ? 1 : 0;
+  return _parent_mesh->_interface_scalar_fluxes[tid][_cell_id + side_offset];
 }

@@ -60,6 +60,9 @@ private:
   // Initialize the solver.
   void initializeSolve();
 
+  // Solve the DSA system and update group fluxes.
+  void syntheticAcceleration(unsigned int g);
+
   // Update the scattering source.
   void updateScatteringSource(unsigned int g);
 
@@ -74,9 +77,9 @@ private:
   void sweep(unsigned int g);
 
   // Individual sweeping functions for each octant.
-  void sweepR(const double & abs_mu, const double & weight, unsigned int ordinate_index,
+  void sweepR(const double & mu, const double & weight, unsigned int ordinate_index,
               unsigned int g, unsigned int tid);
-  void sweepL(const double & abs_mu, const double & weight, unsigned int ordinate_index,
+  void sweepL(const double & mu, const double & weight, unsigned int ordinate_index,
               unsigned int g, unsigned int tid);
 
   // Number of neutron energy groups.

@@ -12,11 +12,13 @@ public:
   DiamondDifference1D() = default;
 
   void solve(CartesianCell1D & cell, const double & angular_weight,
-             const double & abs_mu, unsigned int ordinate_index,
+             const double & mu, unsigned int ordinate_index,
              unsigned int group, CertesianFaceSide x_uw,
              CertesianFaceSide x_dw, unsigned int tid,
              RunMode mode = RunMode::FixedSrc, const double & dt = 0.0) const
   {
+    const double abs_mu = std::abs(mu);
+
     const auto & p = cell.getMatProps();
     auto tot = p._g_total[group];
     if (mode == RunMode::Transient)
@@ -37,5 +39,9 @@ public:
 
     // Update the interface angular fluxes using the diamond difference closures. 2nd order accurate!
     cell.setInterfaceFlux(x_dw, interface_af_x, tid);
+
+    // For DSA: accumulate the interface scalar fluxes and cell-centered currents.
+    cell.accumulateSweptInterfaceSF(angular_weight * center_af, x_dw, tid);
+    cell.accumulateSweptCurrent(angular_weight * mu * center_af, tid);
   }
 }; // class DiamondDifference1D

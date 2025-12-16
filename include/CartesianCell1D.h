@@ -25,10 +25,18 @@ public:
   void setInterfaceFlux(CertesianFaceSide side, const double & val, unsigned int tid);
   void setAllInterfaceFluxes(const double & val, unsigned int tid);
 
-  // Helper functions to get or modify the swept scalar flux.
+  // Helper functions to get or modify the swept values.
   void accumulateSweptFlux(const double & val, unsigned int tid);
   void setSweptFlux(const double & val, unsigned int tid);
   double getSweptFlux(unsigned int tid) const;
+
+  void accumulateSweptCurrent(const double & val, unsigned int tid);
+  void setSweptCurrent(const double & val, unsigned int tid);
+  double getSweptCurrent(unsigned int tid);
+
+  void accumulateSweptInterfaceSF(const double & val, CertesianFaceSide side, unsigned int tid);
+  void setSweptInterfaceSF(const double & val, CertesianFaceSide side, unsigned int tid);
+  double getSweptInterfaceSF(CertesianFaceSide side, unsigned int tid);
 
   // Helper to fetch BCs.
   double boundaryFlux(CertesianFaceSide side, unsigned int ordinate_index);
@@ -62,10 +70,13 @@ public:
   const double _l_x;  // X length of the rectangular prism.
 
   // Flux properties.
-  std::vector<double> _total_scalar_flux;        // The accumulated scalar flux at the current multi-group iteration index.
-  std::vector<double> _prev_mg_scalar_flux;      // The accumulated scalar flux at the previous multi-group iteration index.
-  double              _current_iteration_source; // The scattering source.
-  double              _current_scalar_flux;      // For accumulating the current iteration's scalar flux while the angular flux is being swept.
+  std::vector<double>    _total_scalar_flux;        // The accumulated scalar flux at the current multi-group iteration index.
+  std::vector<double>    _prev_mg_scalar_flux;      // The accumulated scalar flux at the previous multi-group iteration index.
+  double                 _mg_source;                // The group-to-group / external source (for outer iterations).
+  double                 _current_iteration_source; // The scattering source + outer iteration source (for inner iterations).
+  double                 _current_scalar_flux;      // For accumulating the current iteration's scalar flux.
+  double                 _current_current;          // For accumulating the current iteration's current.
+  std::array<double, 2u> _current_interface_sf;     // For accumulating the interface scalar fluxes for the current iteration.
 
   // Previous timestep fluxes.
   std::vector<double> _last_t_scalar_flux;

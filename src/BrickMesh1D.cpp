@@ -83,10 +83,15 @@ BrickMesh1D::BrickMesh1D(const InputParameters & params, const std::array<Bounda
   // Resize the data structures that store the fluxes during the sweep.
   _swept_scalar_flux.resize(_num_threads);
   _interface_angular_fluxes.resize(_num_threads);
+  _swept_net_current.resize(_num_threads);
+  _interface_scalar_fluxes.resize(_num_threads);
   for (unsigned int tid = 0; tid < _num_threads; ++tid)
   {
     _swept_scalar_flux[tid].resize(_cells.size(), 0.0);
+    _swept_net_current[tid].resize(_cells.size(), 0.0);
+
     _interface_angular_fluxes[tid].resize(_cells.size(), {0.0, 0.0});
+    _interface_scalar_fluxes[tid].resize(_cells.size() + 1, 0.0);
   }
 }
 
