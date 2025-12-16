@@ -585,8 +585,8 @@ TransportSolver1D<T>::initializeSolve()
 }
 
 /**
- * Based on "Diffusion Synthetic Acceleration Methods for the Diamond-Differenced Discrete-Ordinates Equations"
- * by R. E. Alcouffe.
+ * Based on "Diffusion Synthetic Acceleration Methods for the Diamond-Differenced
+ * Discrete-Ordinates Equations" by R. E. Alcouffe.
  * https://doi.org/10.13182/NSE77-1
  */
 template <typename T>
@@ -651,6 +651,7 @@ TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
         _diffusion_src_vec(m_half) = qqh;
       }
 
+      // The aformentioned removal correction.
       if (swap_to_removal)
       {
         _diffusion_mat_entries.clear();
@@ -737,19 +738,19 @@ TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
                        - c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)]);
         r -= Dh_i * (c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
                      - c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)]);
-        _diffusion_src_vec(m_half) = qqh + r;
+        _diffusion_src_vec(m_half) = qqh - r;
       }
       break;
     }
   }
 
   /**
-   * BCs are common to all schemes.
+   * BCs are common to all schemes, and are based on "Unconditionally Stable
+   * Diffusion-Synthetic Acceleration Methods for the Slab Geometry Discrete
+   * Ordinates Equations. Part I: Theory" by E. W. Larsen.
+   * https://doi.org/10.13182/NSE82-1
    * Left boundary condition:  Eq. 34a and Eq. 37a.
    * Right boundary condition: Eq. 34b and Eq. 37b.
-   * "Unconditionally Stable Diffusion-Synthetic Acceleration Methods
-   * for the Slab Geometry Discrete Ordinates Equations. Part I: Theory"
-   * by E. W. Larsen. https://doi.org/10.13182/NSE82-1
    */
   {
     const auto & c_0 = _mesh._cells[0];

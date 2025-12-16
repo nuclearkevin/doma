@@ -27,19 +27,20 @@ def main():
   for grp in range(grps):
     raw_flux = np.loadtxt(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.txt")
     if cli_args.log_scale == True:
-      plt.plot(x_vals, raw_flux)
+      plt.plot(x_vals, raw_flux, label=f'Group {grp + 1}')
       plt.yscale('log')
       plt.ylabel('Group ' + str(grp) + ' Scalar Flux (s$^{-1}$)')
       plt.xlabel('x (cm)')
     else:
-      plt.plot(x_vals, raw_flux)
+      plt.plot(x_vals, raw_flux, label=f'Group {grp + 1}')
       plt.ylabel('Flux (s$^{-1}$)')
       plt.xlabel('x (cm)')
 
-    plt.grid()
-    plt.savefig(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.png", format='png')
-    plt.show()
-    plt.close()
+  plt.grid()
+  plt.legend()
+  plt.savefig(dir_path + "/" + input_name + "_flux.png", format='png')
+  plt.show()
+  plt.close()
 
 if __name__ == "__main__":
     main()

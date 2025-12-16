@@ -1,7 +1,7 @@
 <doma_inp>
-  <solver solve_type="eigen" scheme="dd" num_groups="3" fs_tol="1e-4"
-          mg_tol="1e-4" fs_max_it="500" mg_max_it="500" k_tol="1e-5" dsa="true"/>
-  <angular_quad type="gc" np="3" na="3"/>
+  <solver solve_type="eigen" scheme="dd" num_groups="3" fs_tol="1e-8"
+          mg_tol="1e-8" fs_max_it="10000" mg_max_it="10000" k_tol="1e-5" dsa="false"/>
+  <angular_quad type="gc" np="80" na="1"/>
   <mesh dims="1" refinement="5">
     <dx     vals="16.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 16.0"/>
     <ix     vals="16,   4,   4,   4,   4,   4,   4,   4,   4,   4,   4,   4,   16"/>
@@ -9,7 +9,6 @@
   </mesh>
   <materials>
     <mat block="1" delayed_groups="0">
-      <!--<reaction type="source"  mgxs="0.0, 0.0, 0.0"/>-->
       <reaction type="total"   mgxs="0.28823931998966273, 0.6121550646020345, 0.6498843211400337"/>
       <reaction type="scatter" transpose="true" mgxs="0.2696681212115867, 0.005663016987588101,  0.0,
                                                       0.0,                0.5631259764962967,    0.00031530783551354075,
@@ -18,14 +17,12 @@
       <reaction type="chi_p" mgxs="0.9832656289568031, 0.016702876898370737, 0.0"/>
     </mat>
     <mat block="0" delayed_groups="0">
-      <!--<reaction type="source"  mgxs="0.0, 0.0, 0.0"/>-->
       <reaction type="total"   mgxs="0.2630757892651728, 0.42634778734564904, 0.4632858789865285"/>
       <reaction type="scatter" transpose="true" mgxs="0.24459597671900649, 0.018446629684433495,  0.0,
                                                       0.0,                 0.42120560801300017,   0.005135616555681365,
                                                       0.0,                 1.174650715992576e-05, 0.4630235552906912"/>
     </mat>
     <mat block="2" delayed_groups="0">
-      <!--<reaction type="source"  mgxs="1e6, 0.0, 0.0"/>-->
       <reaction type="total"   mgxs="0.2630757892651728, 0.42634778734564904, 0.4632858789865285"/>
       <reaction type="scatter" transpose="true" mgxs="0.24459597671900649, 0.018446629684433495,  0.0,
                                                       0.0,                 0.42120560801300017,   0.005135616555681365,
