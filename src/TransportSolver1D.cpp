@@ -2,14 +2,17 @@
 
 #include "Parallel.h"
 
+#include "Eigen/SparseLU"
+
 template <typename T>
-TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameters & params, bool verbose, unsigned int num_threads)
+TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameters & params, bool verbose, bool dsa, unsigned int num_threads)
   : _num_groups(params._num_e_groups),
     _mode(params._mode),
     _mesh(mesh),
     _angular_quad(2u * params._num_polar),
     _eq_system(),
     _verbose(verbose),
+    _use_dsa(dsa),
     _sit(params._src_it_tol),
     _smi(params._num_src_it),
     _mgt(params._gs_tol),
@@ -21,7 +24,10 @@ TransportSolver1D<T>::TransportSolver1D(BrickMesh1D & mesh, const InputParameter
     _dt((params._t1 - params._t0) / static_cast<double>(params._num_steps)),
     _t_steps(params._num_steps),
     _ic(params._ic),
-    _num_threads(num_threads)
+    _num_threads(num_threads),
+    _diffusion_mat(_mesh._cells.size() + 1, _mesh._cells.size() + 1),
+    _diffusion_src_vec(_mesh._cells.size() + 1),
+    _diffusion_fluxes(_mesh._cells.size() + 1)
 {
   _mesh._num_groups = _num_groups;
 }
@@ -200,6 +206,9 @@ TransportSolver1D<T>::initSteadyIC()
     cell._mg_source = 0.0;
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
+    cell._current_current = 0.0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)] = 0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)] = 0;
     for (unsigned int tid = 0; tid < _num_threads; ++tid)
     {
       cell.setSweptFlux(0.0, tid);
@@ -235,6 +244,9 @@ TransportSolver1D<T>::updateStepFluxes()
     cell._mg_source = 0.0;
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
+    cell._current_current = 0.0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)] = 0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)] = 0;
     for (unsigned int tid = 0; tid < _num_threads; ++tid)
     {
       cell.setSweptFlux(0.0, tid);
@@ -365,6 +377,9 @@ TransportSolver1D<T>::updateMultigroupSource(unsigned int g, double t)
     const auto & p = cell.getMatProps();
 
     cell._current_scalar_flux = 0.0;
+    cell._current_current = 0.0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)] = 0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)] = 0;
 
     cell._mg_source = p._g_src.size() != 0u ? 0.5 * p._g_src[g] : 0.0;
 
@@ -430,6 +445,9 @@ TransportSolver1D<T>::updateMultigroupSourceEigen(unsigned int g)
     const auto & p = cell.getMatProps();
 
     cell._current_scalar_flux = 0.0;
+    cell._current_current = 0.0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)] = 0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)] = 0;
 
     for (unsigned int g_prime = 0u; g_prime < _num_groups; ++g_prime)
     {
@@ -494,6 +512,10 @@ TransportSolver1D<T>::sourceIteration(unsigned int g)
     }
 
     sweep(g);
+
+    if (_use_dsa)
+      syntheticAcceleration(g);
+
     current_residual = computeScatteringResidual(g);
     updateScatteringSource(g);
 
@@ -542,6 +564,9 @@ TransportSolver1D<T>::initializeSolve()
     cell._mg_source = 0.0;
     cell._current_iteration_source = 0.0;
     cell._current_scalar_flux = 0.0;
+    cell._current_current = 0.0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)] = 0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)] = 0;
     for (unsigned int tid = 0; tid < _num_threads; ++tid)
     {
       cell.setSweptFlux(0.0, tid);
@@ -558,11 +583,123 @@ TransportSolver1D<T>::initializeSolve()
   }
 }
 
+/**
+ * Based on "Diffusion Synthetic Acceleration Methods for the Diamond-Differenced Discrete-Ordinates Equations"
+ * by R. E. Alcouffe.
+ * https://doi.org/10.13182/NSE77-1
+ */
 template <typename T>
 void
 TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
 {
+  _diffusion_mat_entries.clear();
+  _diffusion_mat.setZero();
 
+  const unsigned int g_prime = _num_groups * g + g;
+  switch (_mode)
+  {
+    case RunMode::Eigen:
+    {
+      break;
+    }
+    case RunMode::FixedSrc:
+    case RunMode::Transient:
+    {
+      // Matrix interior.
+      for (unsigned int i = 0; i < _mesh._cells.size() - 1; ++i)
+      {
+        // Current cell at i.
+        const auto & c_i   = _mesh._cells[i];
+        const auto & p_i   = c_i.getMatProps();
+        // Neighboring cell at i + 1.
+        const auto & c_i_1 = _mesh._cells[i + 1];
+        const auto & p_i_1 = c_i_1.getMatProps();
+
+        const unsigned int l_half = i;     // Left side of the tridiagonal
+        const unsigned int m_half = i + 1; // Center of the tridiagonal.
+        const unsigned int r_half = i + 2; // Right side of the tridiagonal.
+
+        // Eqs. 21 and 23 (diffusion coefficients divided by h).
+        const double Dh_i   = 1.0 / 3.0 / p_i._g_total[g] / c_i._l_x;
+        const double Dh_i_1 = 1.0 / 3.0 / p_i_1._g_total[g] / c_i_1._l_x;
+        // Eq. 23a
+        double sigma_r_half = (p_i._g_total[g] - p_i._g_g_scatter_mat[g_prime]) * c_i._l_x * c_i._current_scalar_flux;
+        sigma_r_half += (p_i_1._g_total[g] - p_i_1._g_g_scatter_mat[g_prime]) * c_i_1._l_x * c_i_1._current_scalar_flux;
+        sigma_r_half *= 0.5 / c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)];
+
+        // Eq. 23 proper.
+        _diffusion_mat_entries.push_back(Eigen::Triplet<double>(m_half, l_half, -1.0 * Dh_i));
+        _diffusion_mat_entries.push_back(Eigen::Triplet<double>(m_half, m_half, Dh_i + Dh_i_1 + sigma_r_half));
+        _diffusion_mat_entries.push_back(Eigen::Triplet<double>(m_half, r_half, -1.0 * Dh_i_1));
+
+        // Eq. 23b. The source pre-multiplies by 0.5. TODO: make sure this works!
+        const double qqh = (c_i._mg_source * c_i._l_x + c_i_1._mg_source * c_i_1._l_x);
+
+        // Eq. 22 (DSA source correction).
+        double r = c_i_1._current_current - c_i._current_current;
+        r += Dh_i * (c_i_1._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
+                   - c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]);
+        r -= Dh_i_1 * (c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)]
+                     - c_i._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)]);
+        _diffusion_src_vec(m_half) = qqh + r;
+      }
+      /**
+       * Left boundary condition:  Eq. 34a and Eq. 37a.
+       * Right boundary condition: Eq. 34b and Eq. 37b.
+       * "Unconditionally Stable Diffusion-Synthetic Acceleration Methods
+       * for the Slab Geometry Discrete Ordinates Equations. Part I: Theory"
+       * by E. W. Larsen
+       * https://doi.org/10.13182/NSE82-1
+       */
+      {
+        const auto & c_0 = _mesh._cells[0];
+        // The source pre-multiplies by 0.5.
+        _diffusion_src_vec(0) = c_0._mg_source;
+
+        const auto & p_0 = c_0.getMatProps();
+        const double half_d1_h   = 0.5 / 3.0 / p_0._g_total[g] / c_0._l_x;
+        const double eight_sr1_h = 0.125 * (p_0._g_total[g] - p_0._g_g_scatter_mat[g_prime]) * c_0._l_x;
+
+        double beta = 0.0;
+        for (unsigned int n = 0u; n < _angular_quad.order() / 2u; ++n)
+          beta += _angular_quad.direction(n) * _angular_quad.weight(n);
+
+        _diffusion_mat_entries.push_back(Eigen::Triplet<double>(0, 0, beta + half_d1_h + eight_sr1_h));
+        _diffusion_mat_entries.push_back(Eigen::Triplet<double>(0, 1, -1.0 * half_d1_h + eight_sr1_h));
+      }
+      {
+        const auto & c_I = _mesh._cells[_mesh._cells.size() - 1];
+        // The source pre-multiplies by 0.5.
+        _diffusion_src_vec(_mesh._cells.size()) = -1.0 * c_I._mg_source;
+
+        const auto & p_I = c_I.getMatProps();
+        const double half_dI_h   = 0.5 / 3.0 / p_I._g_total[g] / c_I._l_x;
+        const double eight_srI_h = 0.125 * (p_I._g_total[g] - p_I._g_g_scatter_mat[g_prime]) * c_I._l_x;
+
+        double beta = 0.0;
+        for (unsigned int n = _angular_quad.order() / 2u; n < _angular_quad.order(); ++n)
+          beta += _angular_quad.direction(n) * _angular_quad.weight(n);
+
+        _diffusion_mat_entries.push_back(Eigen::Triplet<double>(_mesh._cells.size(), _mesh._cells.size(), beta - half_dI_h - eight_srI_h));
+        _diffusion_mat_entries.push_back(Eigen::Triplet<double>(_mesh._cells.size(), _mesh._cells.size() - 1, half_dI_h - eight_srI_h));
+      }
+
+      // Build the matrix.
+      _diffusion_mat.setFromTriplets(_diffusion_mat_entries.begin(), _diffusion_mat_entries.end());
+      _diffusion_mat.makeCompressed();
+
+      // Solve it!
+      _diffusion_solver.analyzePattern(_diffusion_mat);
+      _diffusion_solver.factorize(_diffusion_mat);
+      _diffusion_fluxes = _diffusion_solver.solve(_diffusion_src_vec);
+
+      // Update transport guess with diffusion fluxes.
+      for (unsigned int i = 0; i < _mesh._cells.size(); ++i)
+        _mesh._cells[i]._current_scalar_flux = 0.5 * (_diffusion_fluxes(i) + _diffusion_fluxes(i + 1));
+
+      break;
+    }
+  }
 }
 
 template <typename T>
@@ -579,6 +716,9 @@ TransportSolver1D<T>::updateScatteringSource(unsigned int g)
     cell._current_iteration_source = cell._mg_source;
     cell._current_iteration_source += 0.5 * p._g_g_scatter_mat[g * _num_groups + g] * cell._current_scalar_flux;
     cell._current_scalar_flux = 0.0;
+    cell._current_current = 0.0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Right)] = 0;
+    cell._current_interface_sf[static_cast<unsigned int>(CertesianFaceSide::Left)] = 0;
   }
 }
 

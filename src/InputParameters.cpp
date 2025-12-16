@@ -112,6 +112,11 @@ parseInputParameters(const std::string & file_path)
       std::exit(1);
     }
 
+    if (std::string(s.attribute("dsa").as_string()) == "true")
+      params._dsa = true;
+    else
+      params._dsa = false;
+
     if (std::string(s.attribute("solve_type").as_string()) == "steady")
       params._mode = RunMode::FixedSrc;
     else if(std::string(s.attribute("solve_type").as_string()) == "eigen")

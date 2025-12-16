@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "Eigen/Sparse"
+
 #include "TransportBase.h"
 #include "BrickMesh1D.h"
 #include "GLAngularQuadrature.h"
@@ -20,7 +22,7 @@ template <typename T>
 class TransportSolver1D
 {
 public:
-  TransportSolver1D(BrickMesh1D & mesh, const InputParameters & params, bool verbose, unsigned int num_threads);
+  TransportSolver1D(BrickMesh1D & mesh, const InputParameters & params, bool verbose, bool dsa, unsigned int num_threads);
 
   // Solve the subcritical multiplication fixed source problem.
   bool solveFixedSource(const std::string & output_file_base = "", const double & t = 0.0);
@@ -129,6 +131,22 @@ private:
 
   // The number of OpenMP threads to use.
   const unsigned int _num_threads;
+
+  // Whether DSA should be used or not.
+  const bool _use_dsa;
+
+  // The sparse matrix for the DSA system.
+  std::vector<Eigen::Triplet<double>> _diffusion_mat_entries;
+  Eigen::SparseMatrix<double> _diffusion_mat;
+
+  // The source vector for the DSA system.
+  Eigen::VectorXd _diffusion_src_vec;
+
+  // The resulting diffusion fluxes.
+  Eigen::VectorXd _diffusion_fluxes;
+
+  // The solver for the DSA system.
+  Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int> > _diffusion_solver;
 }; // class TransportSolver
 
 extern template class TransportSolver1D<DiamondDifference1D>;

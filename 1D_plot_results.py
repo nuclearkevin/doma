@@ -36,6 +36,7 @@ def main():
       plt.ylabel('Flux (s$^{-1}$)')
       plt.xlabel('x (cm)')
 
+    plt.grid()
     plt.savefig(dir_path + "/" + input_name + "_g" + str(grp) + "_flux.png", format='png')
     plt.show()
     plt.close()

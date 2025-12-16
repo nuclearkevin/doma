@@ -1,0 +1,21 @@
+<!--                                                                   -->
+<!--           Solving CP2 from NPRE 555 (at UIUC) with DOMA           -->
+<!--                                                                   -->
+
+<doma_inp>
+  <solver solve_type="steady" scheme="dd" num_groups="1" fs_tol="1e-5"
+          mg_tol="1e-4" fs_max_it="5000" mg_max_it="500" dsa="false"/>
+  <angular_quad type="gc" np="80" na="10"/>
+  <mesh dims="1" refinement="0">
+    <dx     vals="20.0"/>
+    <ix     vals="20"/>
+    <blocks vals="0"/>
+  </mesh>
+  <materials>
+    <mat block="0">
+      <reaction type="total"   mgxs="1.0"/>
+      <reaction type="scatter" mgxs="1.0"/>
+      <reaction type="source"  mgxs="1.0"/>
+    </mat>
+  </materials>
+</doma_inp>

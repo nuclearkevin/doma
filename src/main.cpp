@@ -57,7 +57,7 @@ main(int argc, char** argv)
 
     if (params._eq_type == EquationType::DD)
     {
-      DDTransportSolver1D solver(mesh, params, args.get<bool>("--verbose"), threads);
+      DDTransportSolver1D solver(mesh, params, args.get<bool>("--verbose"), params._dsa, threads);
       if (params._mode == RunMode::FixedSrc)
       {
         if (solver.solveFixedSource((inp_path.parent_path().string() / inp_path.stem()).string()))

@@ -71,6 +71,9 @@ struct InputParameters
   // The k_{eff} convergence criteria for eigenvalue calculations.
   double _k_tol;
 
+  // Whether diffusion synthetic acceleration should be enabled or not.
+  bool _dsa;
+
   // Maximum number of source iterations.
   unsigned int _num_src_it;
   // Maximum number of multi-group iterations.
