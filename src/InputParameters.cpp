@@ -400,6 +400,18 @@ parseInputParameters(const std::string & file_path)
                   "running in transient mode; 'lambda_d' only provides " << mat_props._n_lambda.size() << "." << std::endl;
         std::exit(1);
       }
+      if (params._dsa)
+      {
+        for (const auto & t_xs : mat_props._g_total)
+        {
+          if (t_xs < 1e-6)
+          {
+            std::cerr << "Void region detected! You cannot use synthetic acceleration when cross "
+                      << "sections are close to zero." << std::endl;
+            std::exit(1);
+          }
+        }
+      }
     }
   }
   // End parsing the material properties.
