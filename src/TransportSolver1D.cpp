@@ -755,7 +755,7 @@ TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
   {
     const auto & c_0 = _mesh._cells[0];
     // The source pre-multiplies by 0.5.
-    _diffusion_src_vec(0) = c_0._mg_source;
+    _diffusion_src_vec(0) = -1.0 * c_0._mg_source;
 
     const auto & p_0 = c_0.getMatProps();
     const double half_d1_h   = 0.5 / 3.0 / p_0._g_total[g] / c_0._l_x;
@@ -771,7 +771,7 @@ TransportSolver1D<T>::syntheticAcceleration(unsigned int g)
   {
     const auto & c_I = _mesh._cells[_mesh._cells.size() - 1];
     // The source pre-multiplies by 0.5.
-    _diffusion_src_vec(_mesh._cells.size()) = -1.0 * c_I._mg_source;
+    _diffusion_src_vec(_mesh._cells.size()) = c_I._mg_source;
 
     const auto & p_I = c_I.getMatProps();
     const double half_dI_h   = 0.5 / 3.0 / p_I._g_total[g] / c_I._l_x;
